@@ -51,6 +51,7 @@ export const SCHOOLS: Record<string, string> = {
   '099': 'CSDtv Studio',
   '000': 'District Office',
   '0': 'District Office',
+  '51': 'Canyons District',
 }
 
 export function getSchoolName(code: string | null | undefined): string {
