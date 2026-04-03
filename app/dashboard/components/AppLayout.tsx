@@ -49,10 +49,10 @@ function NavLink({ href, icon, label, onClick }: { href: string; icon: string; l
 
   return (
     <Link href={href} onClick={onClick} className={`
-      flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm mb-0.5 transition-colors duration-150
+      flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm mb-0.5 transition-colors duration-150 border-l-2
       ${isActive
-        ? 'bg-blue-900/30 text-blue-400 border-l-2 border-blue-500 font-medium'
-        : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border-l-2 border-transparent'
+        ? 'bg-blue-500/10 text-blue-400 border-blue-500 font-medium'
+        : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border-transparent'
       }
     `}>
       <Icon type={icon} />
@@ -89,10 +89,11 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
     router.push('/login')
   }, [supabase, router])
 
+  const initials = userName ? userName.slice(0, 2).toUpperCase() : 'JU'
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Logo */}
-      <div className="px-4 py-3 border-b border-white/5 flex items-center">
+    <div className="flex flex-col h-full bg-white dark:bg-[#0d1525]">
+      <div className="px-4 py-3 border-b border-slate-200 dark:border-white/5 flex items-center">
         <Image
           src="/images/CSDtv Logo - New Logo Outlined.png"
           alt="CSDtv"
@@ -103,11 +104,10 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
         />
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-2">
         {NAV.map(({ section, items }) => (
           <div key={section}>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-widest px-2 pt-3 pb-1">
+            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2 pt-3 pb-1">
               {section}
             </p>
             {items.map(item => (
@@ -117,24 +117,27 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
         ))}
       </nav>
 
-      {/* User footer */}
-      <div className="p-2 border-t border-white/5">
+      <div className="p-2 border-t border-slate-200 dark:border-white/5">
         {userName && (
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg mb-1">
-            <div className="w-7 h-7 rounded-full bg-purple-900/60 flex items-center justify-center text-purple-300 text-xs font-medium flex-shrink-0">
-              {userName.slice(0, 2).toUpperCase()}
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0" style={{ background: '#e8a020', color: '#0a0f1e' }}>
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-200 truncate">{userName}</p>
-              <p className="text-xs text-slate-500 capitalize">{userRole}</p>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{userName}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 capitalize">{userRole}</p>
             </div>
           </div>
         )}
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-slate-400 hover:text-slate-200 hover:bg-white/5 w-full transition-colors"
+          className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 w-full transition-colors"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
           Sign out
         </button>
       </div>
@@ -145,15 +148,13 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const dark = theme === 'dark'
-
   const closeMobile = useCallback(() => setMobileOpen(false), [])
 
   return (
-    <div className={`flex min-h-screen ${dark ? 'bg-[#0a0f1e] text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+    <div className="flex min-h-screen bg-slate-50 dark:bg-[#0a0f1e] text-slate-900 dark:text-slate-100">
 
       {/* Desktop sidebar */}
-      <aside className={`hidden md:flex flex-col w-56 flex-shrink-0 fixed top-0 left-0 h-screen ${dark ? 'bg-[#0d1525] border-r border-white/5' : 'bg-white border-r border-slate-200'}`}>
+      <aside className="hidden md:flex flex-col w-56 flex-shrink-0 fixed top-0 left-0 h-screen border-r border-slate-200 dark:border-white/5 bg-white dark:bg-[#0d1525]">
         <SidebarInner />
       </aside>
 
@@ -161,22 +162,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden" onClick={closeMobile}>
           <div className="absolute inset-0 bg-black/60" />
-          <aside className={`relative w-56 h-full flex flex-col ${dark ? 'bg-[#0d1525]' : 'bg-white'}`} onClick={e => e.stopPropagation()}>
+          <aside className="relative w-56 h-full flex flex-col bg-white dark:bg-[#0d1525]" onClick={e => e.stopPropagation()}>
             <SidebarInner onNavClick={closeMobile} />
           </aside>
         </div>
       )}
 
-      {/* Main */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col md:ml-56 min-w-0">
 
         {/* Topbar */}
-        <header className={`sticky top-0 z-10 flex items-center gap-3 px-4 py-2.5 border-b ${dark ? 'bg-[#0a0f1e] border-white/5' : 'bg-white border-slate-200'}`}>
+        <header className="sticky top-0 z-10 flex items-center gap-3 px-4 py-2.5 border-b border-slate-200 dark:border-white/5 bg-white dark:bg-[#0a0f1e]">
 
-          {/* Mobile menu */}
+          {/* Mobile menu button */}
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden text-slate-400 hover:text-slate-200 transition-colors"
+            className="md:hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
             aria-label="Open menu"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -187,19 +188,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
 
           {/* Search */}
-          <div className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${dark ? 'bg-[#0d1525] border border-white/5' : 'bg-slate-100 border border-slate-200'}`}>
+          <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-slate-100 dark:bg-[#0d1525] border border-slate-200 dark:border-white/5">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input
               placeholder="Search productions, tasks, knowledge base..."
-              className="bg-transparent border-none outline-none text-sm w-full placeholder-slate-500"
+              className="bg-transparent border-none outline-none text-sm w-full text-slate-700 dark:text-slate-200 placeholder-slate-400"
             />
           </div>
 
           {/* Notification bell */}
-          <button className={`relative w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${dark ? 'bg-white/5 border border-white/5' : 'bg-slate-100 border border-slate-200'}`} aria-label="Notifications">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400">
+          <button
+            className="relative w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+            aria-label="Notifications"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
               <path d="M13.73 21a2 2 0 01-3.46 0"/>
             </svg>
@@ -209,27 +214,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm ${dark ? 'bg-white/5 border border-white/5' : 'bg-slate-100 border border-slate-200'}`}
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5"
             aria-label="Toggle theme"
           >
-            {dark ? '☀️' : '🌙'}
+            {theme === 'dark' ? '☀️' : '🌙'}
           </button>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">
           {children}
         </main>
 
         {/* Mobile bottom nav */}
-        <nav className={`md:hidden fixed bottom-0 left-0 right-0 flex justify-around items-center py-2 border-t z-10 ${dark ? 'bg-[#0d1525] border-white/5' : 'bg-white border-slate-200'}`}>
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 flex justify-around items-center py-2 border-t border-slate-200 dark:border-white/5 bg-white dark:bg-[#0d1525] z-10">
           {[
             { href: '/dashboard', icon: 'home', label: 'Home' },
             { href: '/dashboard/productions', icon: 'video', label: 'Productions' },
             { href: '/dashboard/tasks', icon: 'check', label: 'Tasks' },
             { href: '/dashboard/schedule', icon: 'calendar', label: 'Schedule' },
           ].map(item => (
-            <Link key={item.href} href={item.href} className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400">
+            <Link key={item.href} href={item.href} className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400 dark:text-slate-500">
               <Icon type={item.icon} />
               <span className="text-xs">{item.label}</span>
             </Link>
