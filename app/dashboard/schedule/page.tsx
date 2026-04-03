@@ -229,7 +229,7 @@ return (schedule as unknown as Record<string, string | null>)[day] || null
             <div>
               {DAYS.map((day, i) => {
                 const def = defaults.find(d => d.user_id === currentUser?.id)
-                const val = def ? (def as Record<string, string | null>)[day] : null
+                const val = def ? (def as unknown as Record<string, string | null>)[day] : null
                 return (
                   <div key={day} style={{ display: 'flex', gap: '10px', padding: '5px 0', borderBottom: `0.5px solid ${border}`, fontSize: '12px' }}>
                     <span style={{ color: muted, minWidth: '36px' }}>{DAY_LABELS[i]}</span>
@@ -267,7 +267,7 @@ return (schedule as unknown as Record<string, string | null>)[day] || null
             <div>
               {DAYS.map((day, i) => {
                 const ov = overrides.find(o => o.user_id === currentUser?.id)
-                const val = ov ? (ov as Record<string, string | null>)[day] : null
+                const val = ov ? (ov as unknown as Record<string, string | null>)[day] : null
                 return (
                   <div key={day} style={{ display: 'flex', gap: '10px', padding: '5px 0', borderBottom: `0.5px solid ${border}`, fontSize: '12px' }}>
                     <span style={{ color: muted, minWidth: '36px' }}>{DAY_LABELS[i]}</span>
