@@ -1,4 +1,3 @@
-[full file content here]
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
