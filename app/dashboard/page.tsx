@@ -1,16 +1,10 @@
 'use client'
 
-import { useTheme } from '@/lib/theme'
-
 export default function DashboardPage() {
-  const { theme, toggleTheme } = useTheme()
-
   return (
     <div>
-      <p style={{ color: 'red', fontSize: '20px' }}>Current theme: {theme}</p>
-      <button onClick={toggleTheme} style={{ padding: '10px 20px', background: 'blue', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', marginTop: '10px' }}>
-        Toggle theme (test)
-      </button>
+      <h1 style={{ fontSize: '22px', fontWeight: 500, marginBottom: '4px' }}>Home</h1>
+      <p style={{ fontSize: '14px', opacity: 0.5 }}>Dashboard coming soon.</p>
     </div>
   )
 }
