@@ -48,20 +48,32 @@ function NavLink({ href, icon, label, onClick }: { href: string; icon: string; l
   const isActive = href === '/dashboard' ? pathname === href : pathname.startsWith(href)
 
   return (
-    <Link href={href} onClick={onClick} className={`
-      flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm mb-0.5 transition-colors duration-150 border-l-2
-      ${isActive
-        ? 'bg-blue-500/10 text-blue-400 border-blue-500 font-medium'
-        : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border-transparent'
-      }
-    `}>
+    <Link
+      href={href}
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        padding: '7px 10px',
+        borderRadius: '8px',
+        fontSize: '13px',
+        marginBottom: '2px',
+        textDecoration: 'none',
+        borderLeft: isActive ? '2px solid #1e6cb5' : '2px solid transparent',
+        background: isActive ? 'rgba(30,108,181,0.12)' : 'transparent',
+        color: isActive ? '#5ba3e0' : '#8899bb',
+        fontWeight: isActive ? 500 : 400,
+        transition: 'all 0.15s',
+      }}
+    >
       <Icon type={icon} />
       {label}
     </Link>
   )
 }
 
-function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
+function SidebarInner({ onNavClick, colors }: { onNavClick?: () => void; colors: ReturnType<typeof getColors> }) {
   const router = useRouter()
   const supabase = createClient()
   const [userName, setUserName] = useState('')
@@ -89,11 +101,11 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
     router.push('/login')
   }, [supabase, router])
 
-  const initials = userName ? userName.slice(0, 2).toUpperCase() : 'JU'
+  const initials = userName ? userName.slice(0, 2).toUpperCase() : ''
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-[#0d1525]">
-      <div className="px-4 py-3 border-b border-slate-200 dark:border-white/5 flex items-center">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: colors.sidebar, borderRight: `0.5px solid ${colors.border}` }}>
+      <div style={{ padding: '12px 16px', borderBottom: `0.5px solid ${colors.border}` }}>
         <Image
           src="/images/CSDtv Logo - New Logo Outlined.png"
           alt="CSDtv"
@@ -104,10 +116,10 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
         />
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
+      <nav style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
         {NAV.map(({ section, items }) => (
           <div key={section}>
-            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-widest px-2 pt-3 pb-1">
+            <p style={{ fontSize: '9px', fontWeight: 500, color: colors.textMuted, letterSpacing: '1.5px', textTransform: 'uppercase', padding: '10px 8px 4px' }}>
               {section}
             </p>
             {items.map(item => (
@@ -117,21 +129,21 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
         ))}
       </nav>
 
-      <div className="p-2 border-t border-slate-200 dark:border-white/5">
-        {userName && (
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg mb-1">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0" style={{ background: '#e8a020', color: '#0a0f1e' }}>
+      <div style={{ padding: '8px', borderTop: `0.5px solid ${colors.border}` }}>
+        {initials && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '8px', marginBottom: '4px' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#e8a020', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 600, color: '#0a0f1e', flexShrink: 0 }}>
               {initials}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{userName}</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 capitalize">{userRole}</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: '13px', fontWeight: 500, color: colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</p>
+              <p style={{ fontSize: '11px', color: colors.textMuted, textTransform: 'capitalize' }}>{userRole}</p>
             </div>
           </div>
         )}
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 w-full transition-colors"
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '8px', fontSize: '13px', color: colors.textMuted, background: 'none', border: 'none', cursor: 'pointer', width: '100%' }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
@@ -145,41 +157,53 @@ function SidebarInner({ onNavClick }: { onNavClick?: () => void }) {
   )
 }
 
+function getColors(dark: boolean) {
+  return {
+    bg: dark ? '#0a0f1e' : '#f8f9fc',
+    sidebar: dark ? '#0d1525' : '#ffffff',
+    topbar: dark ? '#0a0f1e' : '#ffffff',
+    border: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)',
+    text: dark ? '#f0f4ff' : '#1a1f36',
+    textMuted: dark ? '#8899bb' : '#6b7280',
+    searchBg: dark ? '#0d1525' : '#f3f4f6',
+    iconBg: dark ? 'rgba(255,255,255,0.05)' : '#f3f4f6',
+    mobileNavBg: dark ? '#0d1525' : '#ffffff',
+  }
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme()
   const [mobileOpen, setMobileOpen] = useState(false)
   const closeMobile = useCallback(() => setMobileOpen(false), [])
+  const dark = theme === 'dark'
+  const c = getColors(dark)
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-[#0a0f1e] text-slate-900 dark:text-slate-100">
+    <div style={{ display: 'flex', minHeight: '100vh', background: c.bg, color: c.text, fontFamily: 'system-ui, -apple-system, sans-serif', transition: 'background 0.2s, color 0.2s' }}>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-56 flex-shrink-0 fixed top-0 left-0 h-screen border-r border-slate-200 dark:border-white/5 bg-white dark:bg-[#0d1525]">
-        <SidebarInner />
+      <aside style={{ width: '220px', flexShrink: 0, position: 'fixed', top: 0, left: 0, height: '100vh', display: 'none' }} className="desktop-sidebar">
+        <SidebarInner colors={c} />
       </aside>
 
-      {/* Mobile sidebar overlay */}
+      {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" onClick={closeMobile}>
-          <div className="absolute inset-0 bg-black/60" />
-          <aside className="relative w-56 h-full flex flex-col bg-white dark:bg-[#0d1525]" onClick={e => e.stopPropagation()}>
-            <SidebarInner onNavClick={closeMobile} />
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50 }} onClick={closeMobile}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
+          <aside style={{ position: 'relative', width: '220px', height: '100%' }} onClick={e => e.stopPropagation()}>
+            <SidebarInner colors={c} onNavClick={closeMobile} />
           </aside>
         </div>
       )}
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col md:ml-56 min-w-0">
+      {/* Main */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: 0 }} className="main-area">
 
         {/* Topbar */}
-        <header className="sticky top-0 z-10 flex items-center gap-3 px-4 py-2.5 border-b border-slate-200 dark:border-white/5 bg-white dark:bg-[#0a0f1e]">
+        <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', borderBottom: `0.5px solid ${c.border}`, background: c.topbar, transition: 'background 0.2s' }}>
 
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="md:hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-            aria-label="Open menu"
-          >
+          {/* Mobile menu */}
+          <button onClick={() => setMobileOpen(true)} style={{ background: 'none', border: 'none', color: c.textMuted, cursor: 'pointer' }} className="mobile-menu-btn" aria-label="Open menu">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="3" y1="12" x2="21" y2="12"/>
               <line x1="3" y1="6" x2="21" y2="6"/>
@@ -188,59 +212,68 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
 
           {/* Search */}
-          <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm bg-slate-100 dark:bg-[#0d1525] border border-slate-200 dark:border-white/5">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 flex-shrink-0">
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', background: c.searchBg, border: `0.5px solid ${c.border}`, borderRadius: '8px', padding: '7px 12px' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={c.textMuted} strokeWidth="2" style={{ flexShrink: 0 }}>
               <circle cx="11" cy="11" r="8"/>
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input
               placeholder="Search productions, tasks, knowledge base..."
-              className="bg-transparent border-none outline-none text-sm w-full text-slate-700 dark:text-slate-200 placeholder-slate-400"
+              style={{ background: 'none', border: 'none', outline: 'none', fontSize: '13px', color: c.text, fontFamily: 'inherit', width: '100%' }}
             />
           </div>
 
-          {/* Notification bell */}
-          <button
-            className="relative w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-            aria-label="Notifications"
-          >
+          {/* Bell */}
+          <button style={{ position: 'relative', width: '32px', height: '32px', borderRadius: '8px', background: c.iconBg, border: `0.5px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: c.textMuted, flexShrink: 0 }} aria-label="Notifications">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
               <path d="M13.73 21a2 2 0 01-3.46 0"/>
             </svg>
-            <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full" />
+            <span style={{ position: 'absolute', top: '5px', right: '5px', width: '7px', height: '7px', background: '#e8a020', borderRadius: '50%' }} />
           </button>
 
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5"
+            style={{ width: '32px', height: '32px', borderRadius: '8px', background: c.iconBg, border: `0.5px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', flexShrink: 0 }}
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {dark ? '☀️' : '🌙'}
           </button>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">
+        {/* Content */}
+        <main style={{ flex: 1, padding: '20px', paddingBottom: '80px' }}>
           {children}
         </main>
 
         {/* Mobile bottom nav */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 flex justify-around items-center py-2 border-t border-slate-200 dark:border-white/5 bg-white dark:bg-[#0d1525] z-10">
+        <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '8px 0', borderTop: `0.5px solid ${c.border}`, background: c.mobileNavBg, zIndex: 10 }} className="mobile-nav">
           {[
             { href: '/dashboard', icon: 'home', label: 'Home' },
             { href: '/dashboard/productions', icon: 'video', label: 'Productions' },
             { href: '/dashboard/tasks', icon: 'check', label: 'Tasks' },
             { href: '/dashboard/schedule', icon: 'calendar', label: 'Schedule' },
           ].map(item => (
-            <Link key={item.href} href={item.href} className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400 dark:text-slate-500">
+            <Link key={item.href} href={item.href} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '4px 12px', color: c.textMuted, textDecoration: 'none', fontSize: '11px' }}>
               <Icon type={item.icon} />
-              <span className="text-xs">{item.label}</span>
+              {item.label}
             </Link>
           ))}
         </nav>
       </div>
+
+      <style>{`
+        @media (min-width: 768px) {
+          .desktop-sidebar { display: flex !important; flex-direction: column; }
+          .main-area { margin-left: 220px !important; }
+          .mobile-menu-btn { display: none !important; }
+          .mobile-nav { display: none !important; }
+        }
+        @media (max-width: 767px) {
+          main { padding-bottom: 80px !important; }
+        }
+      `}</style>
     </div>
   )
 }
