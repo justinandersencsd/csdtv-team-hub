@@ -137,7 +137,7 @@ export default function SchedulePage() {
 
   const cellValue = (schedule: ScheduleDefault | ScheduleOverride | null, day: string) => {
     if (!schedule) return null
-    return (schedule as Record<string, string | null>)[day] || null
+return (schedule as unknown as Record<string, string | null>)[day] || null
   }
 
   const inputStyle = { background: inputBg, border: `0.5px solid ${border}`, borderRadius: '6px', padding: '5px 8px', fontSize: '12px', color: text, fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' as const }
