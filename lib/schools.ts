@@ -56,5 +56,5 @@ export const SCHOOLS: Record<string, string> = {
 export function getSchoolName(code: string | null | undefined): string {
   if (!code) return ''
   const name = SCHOOLS[code.toString()]
-  return name || `Location ${code}`
+return name || code
 }
