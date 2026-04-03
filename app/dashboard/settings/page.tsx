@@ -22,6 +22,12 @@ interface NotificationPrefs {
   notify_new_production_inapp: boolean
 }
 
+const NOTIF_SETTINGS: { label: string; emailKey: keyof NotificationPrefs; inappKey: keyof NotificationPrefs }[] = [
+  { label: 'Task assigned to me', emailKey: 'notify_assigned_email', inappKey: 'notify_assigned_inapp' },
+  { label: 'Task completed', emailKey: 'notify_completed_email', inappKey: 'notify_completed_inapp' },
+  { label: 'New production synced', emailKey: 'notify_new_production_email', inappKey: 'notify_new_production_inapp' },
+]
+
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme()
   const dark = theme === 'dark'
@@ -88,14 +94,11 @@ export default function SettingsPage() {
 
   const inviteUser = async () => {
     if (!inviteEmail || !currentUser) return
-    const { data, error } = await supabase.auth.admin.inviteUserByEmail(inviteEmail)
-    if (!error && data?.user) {
-      await supabase.from('team').insert({ name: inviteEmail.split('@')[0], email: inviteEmail, role: inviteRole, supabase_user_id: data.user.id, active: true, avatar_color: '#5ba3e0' })
-      setInviteEmail('')
-      setInviteSent(true)
-      setTimeout(() => setInviteSent(false), 3000)
-      loadData()
-    }
+    await supabase.from('team').insert({ name: inviteEmail.split('@')[0], email: inviteEmail, role: inviteRole, active: true, avatar_color: '#5ba3e0' })
+    setInviteEmail('')
+    setInviteSent(true)
+    setTimeout(() => setInviteSent(false), 3000)
+    loadData()
   }
 
   const Toggle = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
@@ -104,7 +107,7 @@ export default function SettingsPage() {
     </button>
   )
 
-  const inputStyle = { background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: text, fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' as const }
+  const inputStyle: React.CSSProperties = { background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: text, fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' }
   const isManager = currentUser?.role === 'Manager'
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading settings...</p></div>
@@ -163,21 +166,17 @@ export default function SettingsPage() {
       {/* Notifications */}
       <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '20px', marginBottom: '12px' }}>
         <h2 style={{ fontSize: '15px', fontWeight: 500, color: text, margin: '0 0 16px' }}>Notifications</h2>
-        {[
-          { label: 'Task assigned to me', emailKey: 'notify_assigned_email', inappKey: 'notify_assigned_inapp' },
-          { label: 'Task completed', emailKey: 'notify_completed_email', inappKey: 'notify_completed_inapp' },
-          { label: 'New production synced', emailKey: 'notify_new_production_email', inappKey: 'notify_new_production_inapp' },
-        ].map(({ label, emailKey, inappKey }) => (
+        {NOTIF_SETTINGS.map(({ label, emailKey, inappKey }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: `0.5px solid ${border}` }}>
             <p style={{ fontSize: '13px', color: text, margin: 0 }}>{label}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '11px', color: muted }}>Email</span>
-                <Toggle checked={(notifPrefs as Record<string, boolean>)[emailKey]} onChange={v => setNotifPrefs(p => ({ ...p, [emailKey]: v }))} />
+                <Toggle checked={notifPrefs[emailKey]} onChange={v => setNotifPrefs(p => ({ ...p, [emailKey]: v }))} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '11px', color: muted }}>In-app</span>
-                <Toggle checked={(notifPrefs as Record<string, boolean>)[inappKey]} onChange={v => setNotifPrefs(p => ({ ...p, [inappKey]: v }))} />
+                <Toggle checked={notifPrefs[inappKey]} onChange={v => setNotifPrefs(p => ({ ...p, [inappKey]: v }))} />
               </div>
             </div>
           </div>
@@ -203,7 +202,7 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
-          <h3 style={{ fontSize: '13px', fontWeight: 500, color: text, margin: '0 0 10px' }}>Invite team member</h3>
+          <h3 style={{ fontSize: '13px', fontWeight: 500, color: text, margin: '0 0 10px' }}>Add team member</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '8px', alignItems: 'center' }}>
             <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="Email address" style={inputStyle} />
             <select value={inviteRole} onChange={e => setInviteRole(e.target.value)} style={{ ...inputStyle, width: 'auto' }}>
@@ -211,7 +210,7 @@ export default function SettingsPage() {
               <option value="Manager">Manager</option>
             </select>
             <button onClick={inviteUser} style={{ fontSize: '13px', padding: '8px 14px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap' }}>
-              {inviteSent ? '✓ Invited' : 'Send invite'}
+              {inviteSent ? '✓ Added' : 'Add member'}
             </button>
           </div>
         </div>

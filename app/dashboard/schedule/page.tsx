@@ -11,9 +11,7 @@ interface TeamMember {
   avatar_color: string
 }
 
-interface ScheduleDefault {
-  id: string
-  user_id: string
+interface DaySchedule {
   monday: string | null
   tuesday: string | null
   wednesday: string | null
@@ -21,19 +19,19 @@ interface ScheduleDefault {
   friday: string | null
 }
 
-interface ScheduleOverride {
+interface ScheduleDefault extends DaySchedule {
+  id: string
+  user_id: string
+}
+
+interface ScheduleOverride extends DaySchedule {
   id: string
   user_id: string
   week_start: string
-  monday: string | null
-  tuesday: string | null
-  wednesday: string | null
-  thursday: string | null
-  friday: string | null
   notes: string | null
 }
 
-const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const
+const DAYS: (keyof DaySchedule)[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
 function getMonday(d: Date): Date {
@@ -64,8 +62,8 @@ export default function SchedulePage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [editingDefault, setEditingDefault] = useState(false)
   const [editingOverride, setEditingOverride] = useState(false)
-  const [myDefault, setMyDefault] = useState<Record<string, string>>({ monday: '', tuesday: '', wednesday: '', thursday: '', friday: '' })
-  const [myOverride, setMyOverride] = useState<Record<string, string>>({ monday: '', tuesday: '', wednesday: '', thursday: '', friday: '', notes: '' })
+  const [myDefault, setMyDefault] = useState<DaySchedule>({ monday: '', tuesday: '', wednesday: '', thursday: '', friday: '' })
+  const [myOverride, setMyOverride] = useState<DaySchedule & { notes: string }>({ monday: '', tuesday: '', wednesday: '', thursday: '', friday: '', notes: '' })
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
@@ -91,9 +89,9 @@ export default function SchedulePage() {
     setDefaults(defaultsRes.data || [])
     setOverrides(overridesRes.data || [])
     if (userRes.data) {
-      const def = defaultsRes.data?.find(d => d.user_id === userRes.data.id)
+      const def = (defaultsRes.data || []).find((d: ScheduleDefault) => d.user_id === userRes.data.id)
       if (def) setMyDefault({ monday: def.monday || '', tuesday: def.tuesday || '', wednesday: def.wednesday || '', thursday: def.thursday || '', friday: def.friday || '' })
-      const ov = overridesRes.data?.find(o => o.user_id === userRes.data.id)
+      const ov = (overridesRes.data || []).find((o: ScheduleOverride) => o.user_id === userRes.data.id)
       if (ov) setMyOverride({ monday: ov.monday || '', tuesday: ov.tuesday || '', wednesday: ov.wednesday || '', thursday: ov.thursday || '', friday: ov.friday || '', notes: ov.notes || '' })
     }
     setLoading(false)
@@ -101,12 +99,14 @@ export default function SchedulePage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const getSchedule = (memberId: string) => {
+  const getScheduleDay = (memberId: string, day: keyof DaySchedule): string | null => {
     const override = overrides.find(o => o.user_id === memberId)
-    if (override) return override
+    if (override) return override[day]
     const def = defaults.find(d => d.user_id === memberId)
-    return def || null
+    return def ? def[day] : null
   }
+
+  const hasOverride = (memberId: string) => overrides.some(o => o.user_id === memberId)
 
   const saveDefault = async () => {
     if (!currentUser) return
@@ -124,10 +124,11 @@ export default function SchedulePage() {
   const saveOverride = async () => {
     if (!currentUser) return
     const existing = overrides.find(o => o.user_id === currentUser.id)
-    const payload = { user_id: currentUser.id, week_start: weekStr, ...myOverride }
+    const { notes, ...days } = myOverride
+    const payload = { user_id: currentUser.id, week_start: weekStr, notes: notes || null, ...days }
     if (existing) {
-      await supabase.from('schedule_overrides').update({ ...myOverride, updated_at: new Date().toISOString() }).eq('id', existing.id)
-      setOverrides(prev => prev.map(o => o.id === existing.id ? { ...o, ...myOverride } : o))
+      await supabase.from('schedule_overrides').update({ ...days, notes: notes || null, updated_at: new Date().toISOString() }).eq('id', existing.id)
+      setOverrides(prev => prev.map(o => o.id === existing.id ? { ...o, ...days, notes: notes || null } : o))
     } else {
       const { data } = await supabase.from('schedule_overrides').insert(payload).select().single()
       if (data) setOverrides(prev => [...prev, data])
@@ -135,12 +136,7 @@ export default function SchedulePage() {
     setEditingOverride(false)
   }
 
-  const cellValue = (schedule: ScheduleDefault | ScheduleOverride | null, day: string) => {
-    if (!schedule) return null
-return (schedule as unknown as Record<string, string | null>)[day] || null
-  }
-
-  const inputStyle = { background: inputBg, border: `0.5px solid ${border}`, borderRadius: '6px', padding: '5px 8px', fontSize: '12px', color: text, fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' as const }
+  const inputStyle: React.CSSProperties = { background: inputBg, border: `0.5px solid ${border}`, borderRadius: '6px', padding: '5px 8px', fontSize: '12px', color: text, fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' }
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading schedule...</p></div>
 
@@ -162,7 +158,6 @@ return (schedule as unknown as Record<string, string | null>)[day] || null
         </div>
       </div>
 
-      {/* Team schedule grid */}
       <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '140px repeat(5, 1fr)', borderBottom: `0.5px solid ${border}` }}>
           <div style={{ padding: '10px 14px', fontSize: '11px', color: muted, fontWeight: 500, background: dark ? 'rgba(255,255,255,0.02)' : '#f8f9fc' }}>Person</div>
@@ -170,41 +165,34 @@ return (schedule as unknown as Record<string, string | null>)[day] || null
             <div key={d} style={{ padding: '10px 8px', fontSize: '11px', color: muted, fontWeight: 500, textAlign: 'center', background: dark ? 'rgba(255,255,255,0.02)' : '#f8f9fc' }}>{d}</div>
           ))}
         </div>
-        {team.map(member => {
-          const schedule = getSchedule(member.id)
-          const hasOverride = overrides.some(o => o.user_id === member.id)
-          return (
-            <div key={member.id} style={{ display: 'grid', gridTemplateColumns: '140px repeat(5, 1fr)', borderBottom: `0.5px solid ${border}` }}>
-              <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 600, color: '#0a0f1e', flexShrink: 0 }}>
-                  {member.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <p style={{ fontSize: '12px', fontWeight: 500, color: text, margin: 0 }}>{member.name.split(' ')[0]}</p>
-                  {hasOverride && <p style={{ fontSize: '9px', color: '#5ba3e0', margin: 0 }}>modified</p>}
-                </div>
+        {team.map(member => (
+          <div key={member.id} style={{ display: 'grid', gridTemplateColumns: '140px repeat(5, 1fr)', borderBottom: `0.5px solid ${border}` }}>
+            <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 600, color: '#0a0f1e', flexShrink: 0 }}>
+                {member.name.slice(0, 2).toUpperCase()}
               </div>
-              {DAYS.map(day => {
-                const val = cellValue(schedule, day)
-                return (
-                  <div key={day} style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {val ? (
-                      <span style={{ fontSize: '11px', fontWeight: 500, padding: '3px 8px', borderRadius: '6px', background: `${member.avatar_color}20`, color: member.avatar_color, whiteSpace: 'nowrap' }}>{val}</span>
-                    ) : (
-                      <span style={{ fontSize: '11px', color: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)' }}>—</span>
-                    )}
-                  </div>
-                )
-              })}
+              <div>
+                <p style={{ fontSize: '12px', fontWeight: 500, color: text, margin: 0 }}>{member.name.split(' ')[0]}</p>
+                {hasOverride(member.id) && <p style={{ fontSize: '9px', color: '#5ba3e0', margin: 0 }}>modified</p>}
+              </div>
             </div>
-          )
-        })}
+            {DAYS.map(day => {
+              const val = getScheduleDay(member.id, day)
+              return (
+                <div key={day} style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {val ? (
+                    <span style={{ fontSize: '11px', fontWeight: 500, padding: '3px 8px', borderRadius: '6px', background: `${member.avatar_color}20`, color: member.avatar_color, whiteSpace: 'nowrap' }}>{val}</span>
+                  ) : (
+                    <span style={{ fontSize: '11px', color: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)' }}>—</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ))}
       </div>
 
-      {/* My schedule actions */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
-
-        {/* Default schedule */}
         <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <div>
@@ -220,7 +208,7 @@ return (schedule as unknown as Record<string, string | null>)[day] || null
               {DAYS.map((day, i) => (
                 <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                   <span style={{ fontSize: '12px', color: muted, minWidth: '36px' }}>{DAY_LABELS[i]}</span>
-                  <input value={myDefault[day]} onChange={e => setMyDefault(p => ({ ...p, [day]: e.target.value }))} placeholder="e.g. 8am–5pm or Off" style={inputStyle} />
+                  <input value={myDefault[day] || ''} onChange={e => setMyDefault(p => ({ ...p, [day]: e.target.value }))} placeholder="e.g. 8am–5pm or Off" style={inputStyle} />
                 </div>
               ))}
               <button onClick={saveDefault} style={{ marginTop: '8px', fontSize: '12px', padding: '6px 14px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Save default</button>
@@ -229,7 +217,7 @@ return (schedule as unknown as Record<string, string | null>)[day] || null
             <div>
               {DAYS.map((day, i) => {
                 const def = defaults.find(d => d.user_id === currentUser?.id)
-                const val = def ? (def as unknown as Record<string, string | null>)[day] : null
+                const val = def ? def[day] : null
                 return (
                   <div key={day} style={{ display: 'flex', gap: '10px', padding: '5px 0', borderBottom: `0.5px solid ${border}`, fontSize: '12px' }}>
                     <span style={{ color: muted, minWidth: '36px' }}>{DAY_LABELS[i]}</span>
@@ -241,7 +229,6 @@ return (schedule as unknown as Record<string, string | null>)[day] || null
           )}
         </div>
 
-        {/* This week override */}
         <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <div>
@@ -257,7 +244,7 @@ return (schedule as unknown as Record<string, string | null>)[day] || null
               {DAYS.map((day, i) => (
                 <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                   <span style={{ fontSize: '12px', color: muted, minWidth: '36px' }}>{DAY_LABELS[i]}</span>
-                  <input value={myOverride[day]} onChange={e => setMyOverride(p => ({ ...p, [day]: e.target.value }))} placeholder="e.g. 9am–1pm or Off" style={inputStyle} />
+                  <input value={myOverride[day] || ''} onChange={e => setMyOverride(p => ({ ...p, [day]: e.target.value }))} placeholder="e.g. 9am–1pm or Off" style={inputStyle} />
                 </div>
               ))}
               <input value={myOverride.notes} onChange={e => setMyOverride(p => ({ ...p, notes: e.target.value }))} placeholder="Notes (optional)" style={{ ...inputStyle, marginTop: '4px', marginBottom: '8px' }} />
@@ -267,7 +254,7 @@ return (schedule as unknown as Record<string, string | null>)[day] || null
             <div>
               {DAYS.map((day, i) => {
                 const ov = overrides.find(o => o.user_id === currentUser?.id)
-                const val = ov ? (ov as unknown as Record<string, string | null>)[day] : null
+                const val = ov ? ov[day] : null
                 return (
                   <div key={day} style={{ display: 'flex', gap: '10px', padding: '5px 0', borderBottom: `0.5px solid ${border}`, fontSize: '12px' }}>
                     <span style={{ color: muted, minWidth: '36px' }}>{DAY_LABELS[i]}</span>
