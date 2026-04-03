@@ -1,3 +1,5 @@
+'use client'
+
 import { ThemeProvider } from '@/lib/theme'
 import AppLayout from './components/AppLayout'
 

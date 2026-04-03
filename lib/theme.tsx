@@ -14,34 +14,31 @@ const ThemeContext = createContext<{
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark')
-  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
     const stored = localStorage.getItem('csdtv-theme') as Theme
-    if (stored) setTheme(stored)
+    const initial = stored || 'dark'
+    setTheme(initial)
+    applyTheme(initial)
   }, [])
 
-  useEffect(() => {
+  const applyTheme = (t: Theme) => {
     const root = document.documentElement
-    if (theme === 'dark') {
+    if (t === 'dark') {
       root.classList.add('dark')
       root.classList.remove('light')
-      document.body.style.background = '#0a0f1e'
     } else {
-      root.classList.add('light')
       root.classList.remove('dark')
-      document.body.style.background = '#f8f9fc'
+      root.classList.add('light')
     }
-  }, [theme])
+  }
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark'
     setTheme(next)
+    applyTheme(next)
     localStorage.setItem('csdtv-theme', next)
   }
-
-  if (!mounted) return null
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
