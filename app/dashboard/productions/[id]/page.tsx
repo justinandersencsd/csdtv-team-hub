@@ -111,6 +111,18 @@ export default function ProductionDetailPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
+  const createTaskForProduction = useCallback(async () => {
+    if (!newTaskTitle || !currentUser) return
+    await supabase.from('tasks').insert({
+      title: newTaskTitle, priority: newTaskPriority,
+      assigned_to: newTaskAssignee || null, due_date: newTaskDue || null,
+      production_id: id, status: 'pending', created_by: currentUser.id,
+    })
+    setNewTaskTitle(''); setNewTaskAssignee(''); setNewTaskDue(''); setNewTaskPriority('normal')
+    setShowCreateTask(false)
+    await logActivity('Created task', newTaskTitle)
+  }, [newTaskTitle, newTaskPriority, newTaskAssignee, newTaskDue, currentUser, id, supabase, logActivity])
+
   const getTypeLabel = (prod: Production) => prod.request_type_label || prod.type || 'Unknown'
 
   const logActivity = useCallback(async (action: string, detail?: string) => {
@@ -186,13 +198,13 @@ export default function ProductionDetailPage() {
 
   const inputStyle: React.CSSProperties = {
     background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px',
-    padding: '8px 12px', fontSize: '15px', color: text, fontFamily: 'inherit',
+    padding: '8px 12px', fontSize: '13px', color: text, fontFamily: 'inherit',
     outline: 'none', width: '100%', boxSizing: 'border-box', minHeight: '40px',
   }
 
   const tabBtn = (tab: typeof activeTab, label: string, count?: number) => (
     <button key={tab} onClick={() => setActiveTab(tab)} style={{
-      fontSize: '15px', padding: '10px 14px', border: 'none', background: 'transparent',
+      fontSize: '13px', padding: '10px 14px', border: 'none', background: 'transparent',
       cursor: 'pointer', fontFamily: 'inherit',
       color: activeTab === tab ? '#5ba3e0' : muted,
       borderBottom: activeTab === tab ? '2px solid #1e6cb5' : '2px solid transparent',
@@ -214,9 +226,9 @@ export default function ProductionDetailPage() {
   const nonMembers = allTeam.filter(m => !members.find(pm => pm.user_id === m.id))
 
   return (
-    <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '900px', margin: '0 auto' }}>
 
-      <Link href="/dashboard/productions" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: muted, fontSize: '15px', textDecoration: 'none', marginBottom: '16px', minHeight: '40px' }}>
+      <Link href="/dashboard/productions" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: muted, fontSize: '13px', textDecoration: 'none', marginBottom: '16px', minHeight: '40px' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
         Productions
       </Link>
@@ -226,16 +238,16 @@ export default function ProductionDetailPage() {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '200px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '14px', color: muted }}>#{production.production_number}</span>
-              <span style={{ fontSize: '13px', padding: '2px 8px', borderRadius: '6px', background: 'rgba(30,108,181,0.12)', color: '#5ba3e0' }}>{typeLabel}</span>
+              <span style={{ fontSize: '12px', color: muted }}>#{production.production_number}</span>
+              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '6px', background: 'rgba(30,108,181,0.12)', color: '#5ba3e0' }}>{typeLabel}</span>
               {production.internal_type_label && production.internal_type_label !== typeLabel && (
-                <span style={{ fontSize: '13px', padding: '2px 8px', borderRadius: '6px', background: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', color: muted }}>{production.internal_type_label}</span>
+                <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '6px', background: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', color: muted }}>{production.internal_type_label}</span>
               )}
-              <span style={{ fontSize: '13px', padding: '2px 8px', borderRadius: '6px', background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>{production.status}</span>
+              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '6px', background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>{production.status}</span>
             </div>
             <h1 style={{ fontSize: '22px', fontWeight: 500, color: text, margin: '0 0 6px' }}>{production.title}</h1>
             {production.organizer_name && (
-              <p style={{ fontSize: '15px', color: muted, margin: 0 }}>
+              <p style={{ fontSize: '13px', color: muted, margin: 0 }}>
                 {production.organizer_name}
                 {production.organizer_email && <> · <a href={`mailto:${production.organizer_email}`} style={{ color: '#5ba3e0', textDecoration: 'none' }}>{production.organizer_email}</a></>}
               </p>
@@ -251,19 +263,19 @@ export default function ProductionDetailPage() {
         {/* Info strip */}
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '12px', padding: '10px 14px', background: cardBg, borderRadius: '10px', border: `0.5px solid ${border}` }}>
           {production.start_datetime && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '14px', color: muted }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: muted }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
               <span style={{ color: text }}>{formatDateTime(production.start_datetime)}</span>
             </div>
           )}
           {production.filming_location && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '14px', color: muted }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: muted }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
               <span style={{ color: text }}>{getSchoolName(production.filming_location)}</span>
             </div>
           )}
           {production.livestream_url && (
-            <a href={production.livestream_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '14px', color: '#5ba3e0', textDecoration: 'none' }}>
+            <a href={production.livestream_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#5ba3e0', textDecoration: 'none' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
               Livestream link
             </a>
@@ -276,7 +288,7 @@ export default function ProductionDetailPage() {
                   {m.team.name.slice(0, 2).toUpperCase()}
                 </div>
               ))}
-              {members.length > 4 && <span style={{ fontSize: '13px', color: muted, marginLeft: '4px' }}>+{members.length - 4}</span>}
+              {members.length > 4 && <span style={{ fontSize: '11px', color: muted, marginLeft: '4px' }}>+{members.length - 4}</span>}
             </div>
           )}
         </div>
@@ -294,10 +306,40 @@ export default function ProductionDetailPage() {
       {/* CHECKLIST TAB */}
       {activeTab === 'checklist' && (
         <div>
+          {/* Create task button */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+            <button onClick={() => setShowCreateTask(!showCreateTask)} style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Create task for this production
+            </button>
+          </div>
+          {showCreateTask && (
+            <div style={{ background: dark ? 'rgba(255,255,255,0.02)' : '#f8fafc', border: `0.5px solid ${border}`, borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+              <input value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)} placeholder="Task title" style={{ ...inputStyle, marginBottom: '8px' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '10px' }}>
+                <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value)} style={inputStyle}>
+                  <option value="">Unassigned</option>
+                  {allTeam.map(m => <option key={m.id} value={m.id}>{m.name.split(' ')[0]}</option>)}
+                </select>
+                <select value={newTaskPriority} onChange={e => setNewTaskPriority(e.target.value)} style={inputStyle}>
+                  <option value="low">Low</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="day of">Day of</option>
+                </select>
+                <input type="date" value={newTaskDue} onChange={e => setNewTaskDue(e.target.value)} style={inputStyle} />
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={createTaskForProduction} disabled={!newTaskTitle} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: newTaskTitle ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: newTaskTitle ? '#fff' : muted, border: 'none', cursor: newTaskTitle ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500 }}>Create task</button>
+                <button onClick={() => setShowCreateTask(false)} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
           {checklist.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px', background: cardBg, borderRadius: '12px', border: `0.5px solid ${border}` }}>
               <p style={{ color: muted, fontSize: '14px', marginBottom: '12px' }}>No checklist yet</p>
-              <button onClick={initChecklist} style={{ fontSize: '15px', padding: '8px 20px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+              <button onClick={initChecklist} style={{ fontSize: '13px', padding: '8px 20px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
                 Load {typeLabel} template
               </button>
             </div>
@@ -307,21 +349,21 @@ export default function ProductionDetailPage() {
                 <div style={{ flex: 1, height: '6px', background: dark ? 'rgba(255,255,255,0.06)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
                   <div style={{ width: `${progress}%`, height: '100%', background: progress === 100 ? '#22c55e' : '#1e6cb5', borderRadius: '3px', transition: 'width 0.3s' }} />
                 </div>
-                <span style={{ fontSize: '14px', color: muted, flexShrink: 0 }}>{completedCount} of {checklist.length}</span>
+                <span style={{ fontSize: '12px', color: muted, flexShrink: 0 }}>{completedCount} of {checklist.length}</span>
               </div>
 
               {/* Mass assign */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '10px 14px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '14px', color: muted, flexShrink: 0 }}>Assign all to:</span>
+                <span style={{ fontSize: '12px', color: muted, flexShrink: 0 }}>Assign all to:</span>
                 <div style={{ display: 'flex', gap: '6px', flex: 1, flexWrap: 'wrap' }}>
                   {allTeam.map(member => (
-                    <button key={member.id} onClick={() => setSelectedMember(selectedMember === member.id ? null : member.id)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '20px', fontSize: '14px', cursor: 'pointer', border: `0.5px solid ${selectedMember === member.id ? '#22c55e' : border}`, background: selectedMember === member.id ? 'rgba(34,197,94,0.1)' : 'transparent', color: selectedMember === member.id ? '#22c55e' : muted, fontFamily: 'inherit' }}>
+                    <button key={member.id} onClick={() => setSelectedMember(selectedMember === member.id ? null : member.id)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', border: `0.5px solid ${selectedMember === member.id ? '#22c55e' : border}`, background: selectedMember === member.id ? 'rgba(34,197,94,0.1)' : 'transparent', color: selectedMember === member.id ? '#22c55e' : muted, fontFamily: 'inherit' }}>
                       <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 700, color: '#0a0f1e' }}>{member.name.slice(0, 2).toUpperCase()}</div>
                       {member.name.split(' ')[0]}
                     </button>
                   ))}
                 </div>
-                <button onClick={massAssign} disabled={!selectedMember} style={{ fontSize: '14px', padding: '6px 14px', borderRadius: '8px', border: 'none', background: selectedMember ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: selectedMember ? '#fff' : muted, cursor: selectedMember ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500, flexShrink: 0 }}>
+                <button onClick={massAssign} disabled={!selectedMember} style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '8px', border: 'none', background: selectedMember ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: selectedMember ? '#fff' : muted, cursor: selectedMember ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500, flexShrink: 0 }}>
                   {assignSuccess ? '✓ Assigned' : 'Assign all'}
                 </button>
               </div>
@@ -334,8 +376,8 @@ export default function ProductionDetailPage() {
                       <button onClick={() => toggleItem(item)} style={{ width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0, border: `1.5px solid ${item.completed ? '#22c55e' : border}`, background: item.completed ? '#22c55e' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {item.completed && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
                       </button>
-                      <span style={{ flex: 1, fontSize: '15px', color: item.completed ? muted : text, textDecoration: item.completed ? 'line-through' : 'none' }}>{item.title}</span>
-                      <select value={item.assigned_to || ''} onChange={e => { supabase.from('checklist_items').update({ assigned_to: e.target.value || null }).eq('id', item.id); setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, assigned_to: e.target.value || null } : c)) }} style={{ fontSize: '13px', padding: '3px 8px', borderRadius: '6px', border: `0.5px solid ${border}`, background: inputBg, color: item.assigned_to ? text : muted, cursor: 'pointer', fontFamily: 'inherit', maxWidth: '110px' }}>
+                      <span style={{ flex: 1, fontSize: '13px', color: item.completed ? muted : text, textDecoration: item.completed ? 'line-through' : 'none' }}>{item.title}</span>
+                      <select value={item.assigned_to || ''} onChange={e => { supabase.from('checklist_items').update({ assigned_to: e.target.value || null }).eq('id', item.id); setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, assigned_to: e.target.value || null } : c)) }} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', border: `0.5px solid ${border}`, background: inputBg, color: item.assigned_to ? text : muted, cursor: 'pointer', fontFamily: 'inherit', maxWidth: '110px' }}>
                         <option value="">Unassigned</option>
                         {allTeam.map(m => <option key={m.id} value={m.id}>{m.name.split(' ')[0]}</option>)}
                       </select>
@@ -348,7 +390,7 @@ export default function ProductionDetailPage() {
                   )
                 })}
               </div>
-              <button onClick={async () => { const t = prompt('New step:'); if (!t) return; const { data } = await supabase.from('checklist_items').insert({ production_id: id, title: t, sort_order: checklist.length, completed: false }).select('*').single(); if (data) setChecklist(prev => [...prev, data]) }} style={{ marginTop: '10px', fontSize: '14px', color: muted, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 0' }}>
+              <button onClick={async () => { const t = prompt('New step:'); if (!t) return; const { data } = await supabase.from('checklist_items').insert({ production_id: id, title: t, sort_order: checklist.length, completed: false }).select('*').single(); if (data) setChecklist(prev => [...prev, data]) }} style={{ marginTop: '10px', fontSize: '12px', color: muted, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 0' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Add step
               </button>
@@ -361,18 +403,18 @@ export default function ProductionDetailPage() {
       {activeTab === 'info' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
           <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px' }}>Organizer</h3>
+            <h3 style={{ fontSize: '12px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px' }}>Organizer</h3>
             {[['Name', production.organizer_name], ['Email', production.organizer_email], ['School', getSchoolName(production.school_department)], ['Year', production.school_year], ['Focus', production.focus_area]].map(([l, v]) => v ? (
-              <div key={l} style={{ display: 'flex', gap: '10px', padding: '6px 0', borderBottom: `0.5px solid ${border}`, fontSize: '15px' }}>
+              <div key={l} style={{ display: 'flex', gap: '10px', padding: '6px 0', borderBottom: `0.5px solid ${border}`, fontSize: '13px' }}>
                 <span style={{ color: muted, minWidth: '60px' }}>{l}</span>
                 <span style={{ color: text }}>{v}</span>
               </div>
             ) : null)}
           </div>
           <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px' }}>Schedule & location</h3>
+            <h3 style={{ fontSize: '12px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px' }}>Schedule & location</h3>
             {[['Start', formatDateTime(production.start_datetime)], ['End', formatDateTime(production.end_datetime)], ['Filming', getSchoolName(production.filming_location)], ['Venue', production.event_location]].map(([l, v]) => v ? (
-              <div key={l} style={{ display: 'flex', gap: '10px', padding: '6px 0', borderBottom: `0.5px solid ${border}`, fontSize: '15px' }}>
+              <div key={l} style={{ display: 'flex', gap: '10px', padding: '6px 0', borderBottom: `0.5px solid ${border}`, fontSize: '13px' }}>
                 <span style={{ color: muted, minWidth: '60px' }}>{l}</span>
                 <span style={{ color: text }}>{v}</span>
               </div>
@@ -380,8 +422,8 @@ export default function ProductionDetailPage() {
           </div>
           {production.additional_notes && (
             <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px', gridColumn: '1 / -1' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 10px' }}>Organizer notes</h3>
-              <p style={{ fontSize: '15px', color: text, lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' as const }}>{production.additional_notes}</p>
+              <h3 style={{ fontSize: '12px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 10px' }}>Organizer notes</h3>
+              <p style={{ fontSize: '13px', color: text, lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' as const }}>{production.additional_notes}</p>
             </div>
           )}
         </div>
@@ -391,19 +433,19 @@ export default function ProductionDetailPage() {
       {activeTab === 'team' && (
         <div>
           {members.length === 0 ? (
-            <p style={{ color: muted, fontSize: '15px', marginBottom: '12px' }}>No team members assigned to this production yet</p>
+            <p style={{ color: muted, fontSize: '13px', marginBottom: '12px' }}>No team members assigned to this production yet</p>
           ) : (
             <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', overflow: 'hidden', marginBottom: '14px' }}>
               {members.map((m, i) => m.team && (
                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < members.length - 1 ? `0.5px solid ${border}` : 'none' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: m.team.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: m.team.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>
                     {m.team.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0 }}>{m.team.name}</p>
-                    <p style={{ fontSize: '14px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{m.team.role}</p>
+                    <p style={{ fontSize: '12px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{m.team.role}</p>
                   </div>
-                  <button onClick={() => m.team && removeMember(m.user_id, m.team.name)} style={{ fontSize: '14px', padding: '5px 12px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '34px' }}>
+                  <button onClick={() => m.team && removeMember(m.user_id, m.team.name)} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '34px' }}>
                     Remove
                   </button>
                 </div>
@@ -413,23 +455,23 @@ export default function ProductionDetailPage() {
 
           {addingMember ? (
             <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px' }}>
-              <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: '0 0 10px' }}>Add team member</p>
+              <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: '0 0 10px' }}>Add team member</p>
               <select value={memberToAdd} onChange={e => setMemberToAdd(e.target.value)} style={{ ...inputStyle, marginBottom: '10px' }}>
                 <option value="">Select a team member...</option>
                 {nonMembers.map(m => <option key={m.id} value={m.id}>{m.name} — {m.role}</option>)}
               </select>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={addMember} disabled={!memberToAdd} style={{ fontSize: '15px', padding: '8px 16px', borderRadius: '8px', background: memberToAdd ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: memberToAdd ? '#fff' : muted, border: 'none', cursor: memberToAdd ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500 }}>Add</button>
-                <button onClick={() => { setAddingMember(false); setMemberToAdd('') }} style={{ fontSize: '15px', padding: '8px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                <button onClick={addMember} disabled={!memberToAdd} style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: memberToAdd ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: memberToAdd ? '#fff' : muted, border: 'none', cursor: memberToAdd ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500 }}>Add</button>
+                <button onClick={() => { setAddingMember(false); setMemberToAdd('') }} style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
               </div>
             </div>
           ) : nonMembers.length > 0 ? (
-            <button onClick={() => setAddingMember(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', color: '#5ba3e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}>
+            <button onClick={() => setAddingMember(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#5ba3e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add team member
             </button>
           ) : (
-            <p style={{ color: muted, fontSize: '15px' }}>All team members are already on this production</p>
+            <p style={{ color: muted, fontSize: '13px' }}>All team members are already on this production</p>
           )}
         </div>
       )}
@@ -437,13 +479,13 @@ export default function ProductionDetailPage() {
       {/* LINKS TAB */}
       {activeTab === 'links' && (
         <div>
-          {links.length === 0 && !showLinkForm && <p style={{ color: muted, fontSize: '15px', marginBottom: '12px' }}>No links added yet</p>}
+          {links.length === 0 && !showLinkForm && <p style={{ color: muted, fontSize: '13px', marginBottom: '12px' }}>No links added yet</p>}
           {links.map(link => (
             <div key={link.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', marginBottom: '8px' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '15px', color: '#5ba3e0', textDecoration: 'none', fontWeight: 500 }}>{link.title}</a>
-                <p style={{ fontSize: '13px', color: muted, margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{link.url}</p>
+                <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: '#5ba3e0', textDecoration: 'none', fontWeight: 500 }}>{link.title}</a>
+                <p style={{ fontSize: '11px', color: muted, margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{link.url}</p>
               </div>
             </div>
           ))}
@@ -452,13 +494,13 @@ export default function ProductionDetailPage() {
               <input value={newLinkTitle} onChange={e => setNewLinkTitle(e.target.value)} placeholder="Link title" style={{ ...inputStyle, marginBottom: '8px' }} />
               <input value={newLinkUrl} onChange={e => setNewLinkUrl(e.target.value)} placeholder="URL" style={{ ...inputStyle, marginBottom: '10px' }} />
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={addLink} style={{ fontSize: '15px', padding: '7px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Add link</button>
-                <button onClick={() => setShowLinkForm(false)} style={{ fontSize: '15px', padding: '7px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                <button onClick={addLink} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Add link</button>
+                <button onClick={() => setShowLinkForm(false)} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
               </div>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button onClick={() => setShowLinkForm(true)} style={{ fontSize: '15px', color: '#5ba3e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}>
+              <button onClick={() => setShowLinkForm(true)} style={{ fontSize: '13px', color: '#5ba3e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Add link
               </button>
@@ -469,11 +511,11 @@ export default function ProductionDetailPage() {
                       <option value="">Select KB article...</option>
                       {kbArticles.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
                     </select>
-                    <button onClick={addKBLink} disabled={!selectedKB} style={{ fontSize: '15px', padding: '7px 14px', borderRadius: '8px', background: selectedKB ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: selectedKB ? '#fff' : muted, border: 'none', cursor: selectedKB ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500, minHeight: '40px' }}>Link</button>
-                    <button onClick={() => setShowKBLink(false)} style={{ fontSize: '15px', padding: '7px 14px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}>Cancel</button>
+                    <button onClick={addKBLink} disabled={!selectedKB} style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '8px', background: selectedKB ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: selectedKB ? '#fff' : muted, border: 'none', cursor: selectedKB ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500, minHeight: '40px' }}>Link</button>
+                    <button onClick={() => setShowKBLink(false)} style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}>Cancel</button>
                   </div>
                 ) : (
-                  <button onClick={() => setShowKBLink(true)} style={{ fontSize: '15px', color: '#9b85e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}>
+                  <button onClick={() => setShowKBLink(true)} style={{ fontSize: '13px', color: '#9b85e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
                     Link KB article
                   </button>
@@ -488,7 +530,7 @@ export default function ProductionDetailPage() {
       {activeTab === 'activity' && (
         <div>
           {activity.length === 0 ? (
-            <p style={{ color: muted, fontSize: '15px' }}>No activity yet</p>
+            <p style={{ color: muted, fontSize: '13px' }}>No activity yet</p>
           ) : (
             <div>
               {activity.map((item, i) => (
@@ -497,9 +539,9 @@ export default function ProductionDetailPage() {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: '15px', color: text, margin: '0 0 2px' }}><span style={{ fontWeight: 500 }}>{item.team?.name || 'Someone'}</span> {item.action.toLowerCase()}</p>
-                    {item.detail && <p style={{ fontSize: '14px', color: muted, margin: 0 }}>{item.detail}</p>}
-                    <p style={{ fontSize: '13px', color: muted, margin: '3px 0 0' }}>{new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
+                    <p style={{ fontSize: '13px', color: text, margin: '0 0 2px' }}><span style={{ fontWeight: 500 }}>{item.team?.name || 'Someone'}</span> {item.action.toLowerCase()}</p>
+                    {item.detail && <p style={{ fontSize: '12px', color: muted, margin: 0 }}>{item.detail}</p>}
+                    <p style={{ fontSize: '11px', color: muted, margin: '3px 0 0' }}>{new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
                   </div>
                 </div>
               ))}
