@@ -285,7 +285,7 @@ export default function TasksPage() {
   }
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+    <div style={{ maxWidth: '1600px', margin: '0 auto', display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
 
       {/* Main task list */}
       <div style={{ flex: 1, minWidth: 0 }}>
