@@ -89,8 +89,38 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const loadUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
-      const { data } = await supabase.from('team').select('name, role, avatar_color').eq('supabase_user_id', session.user.id).single()
-      if (data) { setUserName(data.name); setUserRole(data.role); setUserColor(data.avatar_color || '#e8a020') }
+
+      // Auto-link supabase_user_id for new users who logged in via magic link
+      // Check if there's a team record for this email with no supabase_user_id
+      const { data: teamByEmail } = await supabase
+        .from('team')
+        .select('id, name, role, avatar_color, supabase_user_id')
+        .eq('email', session.user.email!)
+        .single()
+
+      if (teamByEmail && !teamByEmail.supabase_user_id) {
+        // Link this auth user to their team record
+        await supabase
+          .from('team')
+          .update({ supabase_user_id: session.user.id })
+          .eq('id', teamByEmail.id)
+        setUserName(teamByEmail.name)
+        setUserRole(teamByEmail.role)
+        setUserColor(teamByEmail.avatar_color || '#e8a020')
+        return
+      }
+
+      // Normal lookup by supabase_user_id
+      const { data } = await supabase
+        .from('team')
+        .select('name, role, avatar_color')
+        .eq('supabase_user_id', session.user.id)
+        .single()
+      if (data) {
+        setUserName(data.name)
+        setUserRole(data.role)
+        setUserColor(data.avatar_color || '#e8a020')
+      }
     }
     loadUser()
   }, [supabase])
@@ -117,8 +147,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       borderLeft: isActive(href) ? '2px solid #1e6cb5' : '2px solid transparent',
       background: isActive(href) ? 'rgba(30,108,181,0.12)' : 'transparent',
       color: isActive(href) ? '#5ba3e0' : muted,
-      fontWeight: isActive(href) ? 500 : 400,
-      minHeight: '40px',
+      fontWeight: isActive(href) ? 500 : 400, minHeight: '40px',
     }}>
       <Icon type={icon} />
       {label}
@@ -161,12 +190,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: bg, color: text, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
-      {/* Desktop sidebar */}
       <aside className="csdtv-sidebar" style={{ width: '220px', flexShrink: 0, position: 'fixed', top: 0, left: 0, height: '100vh', borderRight: `0.5px solid ${border}`, display: 'none', flexDirection: 'column' }}>
         {sidebarContent()}
       </aside>
 
-      {/* Mobile drawer overlay */}
       {mobileOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50 }} onClick={() => setMobileOpen(false)}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
@@ -176,20 +203,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* "More" bottom sheet on mobile */}
       {showMore && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50 }} onClick={() => setShowMore(false)}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: sidebar, borderRadius: '20px 20px 0 0', padding: '12px 16px 40px', zIndex: 1 }} onClick={e => e.stopPropagation()}>
             <div style={{ width: '36px', height: '4px', background: border, borderRadius: '2px', margin: '0 auto 20px' }} />
-            <p style={{ fontSize: '11px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px 4px' }}>More</p>
+            <p style={{ fontSize: '11px', fontWeight: 600, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px 4px' }}>More</p>
             {MORE_ITEMS.map(item => (
-              <Link key={item.href} href={item.href} onClick={() => setShowMore(false)} style={{
-                display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 12px',
-                borderRadius: '12px', textDecoration: 'none', marginBottom: '4px',
-                background: isActive(item.href) ? 'rgba(30,108,181,0.12)' : 'transparent',
-                color: isActive(item.href) ? '#5ba3e0' : text,
-              }}>
+              <Link key={item.href} href={item.href} onClick={() => setShowMore(false)} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 12px', borderRadius: '12px', textDecoration: 'none', marginBottom: '4px', background: isActive(item.href) ? 'rgba(30,108,181,0.12)' : 'transparent', color: isActive(item.href) ? '#5ba3e0' : text }}>
                 <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: isActive(item.href) ? 'rgba(30,108,181,0.2)' : (dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'), display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive(item.href) ? '#5ba3e0' : muted }}>
                   <Icon type={item.icon} size={18} />
                 </div>
@@ -207,96 +228,51 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* Main content */}
       <div className="csdtv-main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-
-        {/* Header */}
         <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', borderBottom: `0.5px solid ${border}`, background: sidebar }}>
           <button className="csdtv-hamburger" onClick={() => setMobileOpen(true)} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', display: 'none', padding: '4px', minWidth: '44px', minHeight: '44px', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
-
-          <button
-            onClick={() => { setShowSearch(true); setShowNotifications(false) }}
-            style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', background: searchBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '9px 14px', cursor: 'text', minHeight: '44px' }}
-          >
+          <button onClick={() => { setShowSearch(true); setShowNotifications(false) }} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', background: searchBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '9px 14px', cursor: 'text', minHeight: '44px' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <span className="csdtv-search-label" style={{ fontSize: '13px', color: muted }}>Search productions, tasks, knowledge base...</span>
           </button>
-
-          <button
-            onClick={() => { setShowNotifications(!showNotifications); setShowSearch(false) }}
-            style={{ position: 'relative', width: '44px', height: '44px', borderRadius: '10px', background: iconBg, border: `0.5px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: muted, flexShrink: 0 }}
-          >
+          <button onClick={() => { setShowNotifications(!showNotifications); setShowSearch(false) }} style={{ position: 'relative', width: '44px', height: '44px', borderRadius: '10px', background: iconBg, border: `0.5px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: muted, flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-            {unreadCount > 0 && (
-              <span style={{ position: 'absolute', top: '6px', right: '6px', minWidth: '16px', height: '16px', borderRadius: '8px', background: '#e8a020', fontSize: '9px', fontWeight: 700, color: '#0a0f1e', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
+            {unreadCount > 0 && <span style={{ position: 'absolute', top: '6px', right: '6px', minWidth: '16px', height: '16px', borderRadius: '8px', background: '#e8a020', fontSize: '9px', fontWeight: 700, color: '#0a0f1e', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
           </button>
-
-          <button
-            onClick={toggleTheme}
-            style={{ width: '44px', height: '44px', borderRadius: '10px', background: iconBg, border: `0.5px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', flexShrink: 0 }}
-          >
+          <button onClick={toggleTheme} style={{ width: '44px', height: '44px', borderRadius: '10px', background: iconBg, border: `0.5px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px', flexShrink: 0 }}>
             {dark ? '☀️' : '🌙'}
           </button>
         </header>
 
-        {/* Page content */}
         <main className="csdtv-content" style={{ flex: 1, padding: '20px 16px' }}>
           {children}
         </main>
 
-        {/* Mobile bottom nav */}
         <nav className="csdtv-mobile-nav" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, display: 'none', background: sidebar, borderTop: `0.5px solid ${border}`, zIndex: 10, paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'stretch' }}>
             {BOTTOM_NAV.map(item => {
               const active = item.href !== '#more' && isActive(item.href)
               const isMore = item.href === '#more'
-              const isMoreActive = showMore
-              return (
-                isMore ? (
-                  <button
-                    key="more"
-                    onClick={() => { setShowMore(!showMore); setShowNotifications(false) }}
-                    style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                      gap: '3px', padding: '10px 0', flex: 1, minHeight: '56px', background: 'none', border: 'none',
-                      color: isMoreActive ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit',
-                    }}
-                  >
-                    <Icon type="more" size={22} />
-                    <span style={{ fontSize: '10px', fontWeight: isMoreActive ? 600 : 400 }}>More</span>
-                  </button>
-                ) : (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setShowMore(false)}
-                    style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                      gap: '3px', padding: '10px 0', flex: 1, minHeight: '56px',
-                      color: active ? '#5ba3e0' : muted, textDecoration: 'none',
-                    }}
-                  >
-                    <Icon type={item.icon} size={22} />
-                    <span style={{ fontSize: '10px', fontWeight: active ? 600 : 400 }}>{item.label}</span>
-                  </Link>
-                )
+              return isMore ? (
+                <button key="more" onClick={() => { setShowMore(!showMore); setShowNotifications(false) }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', padding: '10px 0', flex: 1, minHeight: '56px', background: 'none', border: 'none', color: showMore ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <Icon type="more" size={22} />
+                  <span style={{ fontSize: '10px', fontWeight: showMore ? 600 : 400 }}>More</span>
+                </button>
+              ) : (
+                <Link key={item.href} href={item.href} onClick={() => setShowMore(false)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', padding: '10px 0', flex: 1, minHeight: '56px', color: active ? '#5ba3e0' : muted, textDecoration: 'none' }}>
+                  <Icon type={item.icon} size={22} />
+                  <span style={{ fontSize: '10px', fontWeight: active ? 600 : 400 }}>{item.label}</span>
+                </Link>
               )
             })}
           </div>
         </nav>
       </div>
 
-      {showNotifications && (
-        <NotificationPanel onClose={() => setShowNotifications(false)} onUnreadChange={setUnreadCount} />
-      )}
-      {showSearch && (
-        <SearchPanel onClose={() => setShowSearch(false)} />
-      )}
+      {showNotifications && <NotificationPanel onClose={() => setShowNotifications(false)} onUnreadChange={setUnreadCount} />}
+      {showSearch && <SearchPanel onClose={() => setShowSearch(false)} />}
 
       <style>{`
         @media (min-width: 768px) {

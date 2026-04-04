@@ -6,37 +6,18 @@ import { useTheme } from '@/lib/theme'
 import Link from 'next/link'
 
 interface Task {
-  id: string
-  title: string
-  status: string
-  due_date: string | null
-  priority: string
+  id: string; title: string; status: string; due_date: string | null; priority: string
   productions?: { title: string } | null
 }
 
 interface Production {
-  id: string
-  production_number: number
-  title: string
-  request_type_label: string | null
-  type: string | null
-  status: string | null
-  start_datetime: string | null
-  checklist_items?: { completed: boolean }[]
+  id: string; production_number: number; title: string
+  request_type_label: string | null; type: string | null; status: string | null
+  start_datetime: string | null; checklist_items?: { completed: boolean }[]
 }
 
-interface TeamMember {
-  id: string
-  name: string
-  role: string
-  avatar_color: string
-}
-
-interface CurrentUser {
-  id: string
-  name: string
-  role: string
-}
+interface TeamMember { id: string; name: string; role: string; avatar_color: string }
+interface CurrentUser { id: string; name: string; role: string }
 
 export default function DashboardPage() {
   const { theme } = useTheme()
@@ -48,6 +29,8 @@ export default function DashboardPage() {
   const [myProductions, setMyProductions] = useState<Production[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [allTasks, setAllTasks] = useState<Task[]>([])
+  const [totalProductions, setTotalProductions] = useState(0)
+  const [todayProductions, setTodayProductions] = useState<Production[]>([])
   const [view, setView] = useState<'my' | 'team'>('my')
   const [loading, setLoading] = useState(true)
 
@@ -55,62 +38,38 @@ export default function DashboardPage() {
   const muted    = dark ? '#94a3b8' : '#6b7280'
   const border   = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
   const cardBg   = dark ? '#111827' : '#ffffff'
-  const metricBg = dark ? '#1e2a3a' : '#f0f4ff'
+  const metricBg = dark ? '#1a2740' : '#f0f4ff'
   const rowHover = dark ? 'rgba(255,255,255,0.04)' : '#f8fafc'
 
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-
-    const { data: user } = await supabase
-      .from('team')
-      .select('*')
-      .eq('supabase_user_id', session.user.id)
-      .single()
-
+    const { data: user } = await supabase.from('team').select('*').eq('supabase_user_id', session.user.id).single()
     if (!user) return
     setCurrentUser(user)
 
-    const [tasksRes, prodMembersRes, teamRes, allTasksRes] = await Promise.all([
-      supabase
-        .from('tasks')
-        .select('*, productions(title)')
-        .eq('assigned_to', user.id)
-        .neq('status', 'complete')
-        .order('due_date', { ascending: true, nullsFirst: false })
-        .limit(8),
-      supabase
-        .from('production_members')
-        .select('production_id')
-        .eq('user_id', user.id),
-      supabase
-        .from('team')
-        .select('*')
-        .eq('active', true),
-      supabase
-        .from('tasks')
-        .select('*, productions(title)')
-        .neq('status', 'complete')
-        .order('due_date', { ascending: true, nullsFirst: false })
-        .limit(8),
-    ])
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999)
+
+    const [tasksRes, prodMembersRes, teamRes, allTasksRes, countRes, todayProdsRes] = await Promise.all([
+      supabase.from('tasks').select('*, productions(title)').eq('assigned_to', user.id).neq('status', 'complete').order('due_date', { ascending: true, nullsFirst: false }).limit(8),
+      supabase.from('production_members').select('production_id').eq('user_id', user.id),
+      supabase.from('team').select('*').eq('active', true),
+      supabase.from('tasks').select('*, productions(title)').neq('status', 'complete').order('due_date', { ascending: true, nullsFirst: false }).limit(8),
+      supabase.from('productions').select('id', { count: 'exact', head: true }),
+supabase.from('productions').select('id, title, production_number, request_type_label, type, status, start_datetime').gte('start_datetime', todayStart.toISOString()).lte('start_datetime', todayEnd.toISOString()).limit(5),    ])
 
     setMyTasks(tasksRes.data || [])
     setTeamMembers(teamRes.data || [])
     setAllTasks(allTasksRes.data || [])
+    setTotalProductions(countRes.count || 0)
+    setTodayProductions(todayProdsRes.data || [])
 
     if (prodMembersRes.data && prodMembersRes.data.length > 0) {
       const ids = prodMembersRes.data.map((p: { production_id: string }) => p.production_id)
-      const { data: prods } = await supabase
-        .from('productions')
-        .select('*, checklist_items(completed)')
-        .in('id', ids)
-        .neq('status', 'Complete')
-        .order('start_datetime', { ascending: true, nullsFirst: false })
-        .limit(5)
+      const { data: prods } = await supabase.from('productions').select('*, checklist_items(completed)').in('id', ids).neq('status', 'Complete').order('start_datetime', { ascending: true, nullsFirst: false }).limit(5)
       setMyProductions(prods || [])
     }
-
     setLoading(false)
   }, [supabase])
 
@@ -123,10 +82,23 @@ export default function DashboardPage() {
     return 'Good evening'
   }
 
+  const getMorningBriefing = () => {
+    const parts: string[] = []
+    const today = new Date()
+    const todayTasks = myTasks.filter(t => t.due_date && new Date(t.due_date).toDateString() === today.toDateString())
+    const overdueTasks = myTasks.filter(t => t.due_date && new Date(t.due_date) < today)
+    if (todayProductions.length > 0) parts.push(`${todayProductions.length} production${todayProductions.length > 1 ? 's' : ''} happening today`)
+    if (overdueTasks.length > 0) parts.push(`${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''} need attention`)
+    else if (todayTasks.length > 0) parts.push(`${todayTasks.length} task${todayTasks.length > 1 ? 's' : ''} due today`)
+    if (myTasks.filter(t => t.priority === 'day of').length > 0) parts.push('day-of tasks assigned')
+    if (parts.length === 0 && myTasks.length === 0) return "You're all caught up — no open tasks."
+    if (parts.length === 0) return `You have ${myTasks.length} open task${myTasks.length > 1 ? 's' : ''}.`
+    return parts.join(' · ') + '.'
+  }
+
   const formatDate = (d: string | null): { label: string; color: string } | null => {
     if (!d) return null
-    const date = new Date(d)
-    const today = new Date()
+    const date = new Date(d), today = new Date()
     const diff = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     if (diff < 0) return { label: 'Overdue', color: '#ef4444' }
     if (diff === 0) return { label: 'Today', color: '#f59e0b' }
@@ -135,143 +107,95 @@ export default function DashboardPage() {
     return { label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), color: muted }
   }
 
-  const getProgress = (prod: Production): { done: number; total: number; pct: number } | null => {
+  const getProgress = (prod: Production) => {
     const items = prod.checklist_items || []
     if (items.length === 0) return null
     const done = items.filter(i => i.completed).length
     return { done, total: items.length, pct: Math.round((done / items.length) * 100) }
   }
 
-  const overdueCount = myTasks.filter(t => {
-    if (!t.due_date) return false
-    return new Date(t.due_date) < new Date()
-  }).length
-
-  const urgentCount = myTasks.filter(t => t.priority === 'high').length
+  const overdueCount = myTasks.filter(t => t.due_date && new Date(t.due_date) < new Date()).length
+  const urgentCount = myTasks.filter(t => t.priority === 'high' || t.priority === 'day of').length
   const nextDue = myTasks.find(t => t.due_date) || null
   const nextDueInfo = nextDue ? formatDate(nextDue.due_date) : null
 
   const statusBadge = (status: string) => {
-    const styles: Record<string, { bg: string; color: string }> = {
-      'in progress': { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b' },
-      'pending':     { bg: 'rgba(100,116,139,0.15)', color: '#94a3b8' },
-      'complete':    { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
-    }
-    const s = styles[status?.toLowerCase()] || styles['pending']
-    return (
-      <span style={{ fontSize: '11px', fontWeight: 500, padding: '2px 8px', borderRadius: '20px', background: s.bg, color: s.color, whiteSpace: 'nowrap' as const }}>
-        {status}
-      </span>
-    )
+    const s = status?.toLowerCase()
+    const st = { 'in progress': { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b' }, 'pending': { bg: 'rgba(100,116,139,0.15)', color: '#94a3b8' }, 'complete': { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' } }[s] || { bg: 'rgba(100,116,139,0.15)', color: '#94a3b8' }
+    return <span style={{ fontSize: '11px', fontWeight: 500, padding: '3px 9px', borderRadius: '20px', background: st.bg, color: st.color, whiteSpace: 'nowrap' as const }}>{status}</span>
   }
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        <p style={{ color: muted, fontSize: '14px' }}>Loading your dashboard...</p>
-      </div>
-    )
-  }
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading...</p></div>
+
+  const QUICK_ACTIONS = [
+    { href: '/dashboard/tasks', label: 'New task', desc: 'Create a task', color: '#3b82f6', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> },
+    { href: '/dashboard/productions', label: 'Productions', desc: `${totalProductions} total`, color: '#f59e0b', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg> },
+    { href: '/dashboard/schedule', label: 'My schedule', desc: 'Set your hours', color: '#22c55e', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
+    { href: '/dashboard/knowledge', label: 'Knowledge base', desc: 'Guides & docs', color: '#a78bfa', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg> },
+  ]
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
 
-      {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 600, color: text, margin: '0 0 4px' }}>
-          {greeting()}, {currentUser?.name?.split(' ')[0]}
-        </h1>
-        <p style={{ fontSize: '13px', color: muted, margin: 0 }}>
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-        </p>
+      <div style={{ marginBottom: '16px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 600, color: text, margin: '0 0 2px' }}>{greeting()}, {currentUser?.name?.split(' ')[0]}</h1>
+        <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px' }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+        {myTasks.length >= 0 && (
+          <p style={{ fontSize: '13px', color: urgentCount > 0 || overdueCount > 0 ? '#f59e0b' : muted, margin: 0, lineHeight: 1.5 }}>
+            {getMorningBriefing()}
+          </p>
+        )}
       </div>
 
-      {/* View toggle */}
-      <div style={{ display: 'flex', gap: '4px', background: dark ? '#1e2a3a' : '#e2e8f0', borderRadius: '10px', padding: '3px', width: 'fit-content', marginBottom: '24px' }}>
+      {todayProductions.length > 0 && (
+        <div style={{ background: 'rgba(30,108,181,0.08)', border: '0.5px solid rgba(30,108,181,0.2)', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 600, color: '#5ba3e0', margin: '0 0 8px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>🎬 Today's productions</p>
+          {todayProductions.map((p, i) => (
+            <Link key={p.id} href={`/dashboard/productions/${p.id}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', padding: i > 0 ? '6px 0 0' : '0' }}>
+              <span style={{ fontSize: '12px', color: muted }}>#{p.production_number}</span>
+              <span style={{ fontSize: '13px', fontWeight: 500, color: text }}>{p.title}</span>
+              <span style={{ fontSize: '11px', color: '#5ba3e0', marginLeft: 'auto' }}>{p.request_type_label || 'Production'}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '4px', background: dark ? '#1e2a3a' : '#e2e8f0', borderRadius: '12px', padding: '3px', width: 'fit-content', marginBottom: '16px' }}>
         {(['my', 'team'] as const).map(v => (
-          <button key={v} onClick={() => setView(v)} style={{
-            fontSize: '13px', padding: '6px 18px', borderRadius: '8px', border: 'none',
-            background: view === v ? '#1e6cb5' : 'transparent',
-            color: view === v ? '#fff' : muted,
-            cursor: 'pointer', fontFamily: 'inherit', fontWeight: view === v ? 500 : 400,
-            transition: 'all 0.15s',
-          }}>
+          <button key={v} onClick={() => setView(v)} style={{ fontSize: '13px', padding: '7px 20px', borderRadius: '10px', border: 'none', background: view === v ? '#1e6cb5' : 'transparent', color: view === v ? '#fff' : muted, cursor: 'pointer', fontFamily: 'inherit', fontWeight: view === v ? 600 : 400, minHeight: '40px', transition: 'all 0.15s' }}>
             {v === 'my' ? 'My day' : 'Team view'}
           </button>
         ))}
       </div>
 
-      {/* MY DAY VIEW */}
       {view === 'my' && (
         <div>
-          {/* Metric cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }} className="metric-grid">
             {[
-              {
-                label: 'Open tasks',
-                value: myTasks.length.toString(),
-                sub: 'assigned to you',
-                highlight: false,
-              },
-              {
-                label: 'Overdue',
-                value: overdueCount.toString(),
-                sub: overdueCount === 0 ? 'all on track' : 'need attention',
-                highlight: overdueCount > 0,
-                highlightColor: '#ef4444',
-              },
-              {
-                label: 'High priority',
-                value: urgentCount.toString(),
-                sub: urgentCount === 0 ? 'nothing urgent' : 'urgent tasks',
-                highlight: urgentCount > 0,
-                highlightColor: '#f59e0b',
-              },
-              {
-                label: 'Next due',
-                value: nextDueInfo?.label || '—',
-                sub: nextDue?.title || 'no tasks due',
-                highlight: false,
-                valueColor: nextDueInfo?.color,
-              },
-              {
-                label: 'Productions',
-                value: myProductions.length.toString(),
-                sub: 'you are assigned to',
-                highlight: false,
-              },
-            ].map(({ label, value, sub, highlight, highlightColor, valueColor }) => (
-              <div key={label} style={{
-                background: highlight ? `${highlightColor}18` : metricBg,
-                borderRadius: '12px', padding: '16px 18px',
-                border: `1px solid ${highlight ? `${highlightColor}40` : border}`,
-              }}>
-                <p style={{ fontSize: '11px', fontWeight: 500, color: highlight ? highlightColor : muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>{label}</p>
-                <p style={{ fontSize: '32px', fontWeight: 700, color: valueColor || (highlight ? highlightColor : text), margin: '0 0 2px', lineHeight: 1 }}>{value}</p>
+              { label: 'Open tasks', value: String(myTasks.length), sub: 'assigned to you', hi: false },
+              { label: 'Overdue', value: String(overdueCount), sub: overdueCount === 0 ? 'all on track ✓' : 'need attention', hi: overdueCount > 0, color: '#ef4444' },
+              { label: 'High priority', value: String(urgentCount), sub: urgentCount === 0 ? 'nothing urgent' : 'urgent', hi: urgentCount > 0, color: '#f59e0b' },
+              { label: 'Next due', value: nextDueInfo?.label || '—', sub: nextDue?.title || 'no tasks due', hi: false, valueColor: nextDueInfo?.color },
+              { label: 'Productions', value: String(myProductions.length), sub: 'you are on', hi: false },
+            ].map(({ label, value, sub, hi, color, valueColor }) => (
+              <div key={label} style={{ background: hi ? `${color}12` : metricBg, borderRadius: '14px', padding: '16px', border: `1px solid ${hi ? `${color}35` : border}` }}>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: hi ? color : muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.8px' }}>{label}</p>
+                <p style={{ fontSize: '30px', fontWeight: 700, color: valueColor || (hi ? color : text), margin: '0 0 2px', lineHeight: 1 }}>{value}</p>
                 <p style={{ fontSize: '11px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{sub}</p>
               </div>
             ))}
           </div>
 
-          {/* Quick actions */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '24px' }}>
-            {[
-              { href: '/dashboard/tasks', label: 'New task', desc: 'Create a task', color: '#3b82f6', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> },
-              { href: '/dashboard/productions', label: 'Productions', desc: '309 total', color: '#f59e0b', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg> },
-              { href: '/dashboard/schedule', label: 'My schedule', desc: 'Set your hours', color: '#22c55e', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
-              { href: '/dashboard/knowledge', label: 'Knowledge base', desc: 'Guides & processes', color: '#a78bfa', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg> },
-            ].map(({ href, label, desc, color, icon }) => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }} className="quick-grid">
+            {QUICK_ACTIONS.map(({ href, label, desc, color, icon }) => (
               <Link key={href} href={href} style={{ textDecoration: 'none' }}>
-                <div
-                  style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '16px', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: '10px' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = color; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)' }}
+                <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '12px', minHeight: '64px' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = color; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)' }}
                   onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = border; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)' }}
                 >
-                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
-                    {icon}
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: text, margin: '0 0 2px' }}>{label}</p>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>{icon}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: text, margin: 0 }}>{label}</p>
                     <p style={{ fontSize: '11px', color: muted, margin: 0 }}>{desc}</p>
                   </div>
                 </div>
@@ -279,68 +203,65 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Tasks + Productions */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-
-            {/* My tasks */}
-            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px' }}>
+            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: `1px solid ${border}` }}>
-                <h2 style={{ fontSize: '14px', fontWeight: 600, color: text, margin: 0 }}>My tasks</h2>
-                <Link href="/dashboard/tasks" style={{ fontSize: '12px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
+                <h2 style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0 }}>My tasks</h2>
+                <Link href="/dashboard/tasks" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
               </div>
               {myTasks.length === 0 ? (
-                <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '32px 20px', margin: 0 }}>No open tasks</p>
+                <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '14px', color: muted, margin: '0 0 8px' }}>No open tasks</p>
+                  <Link href="/dashboard/tasks" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none' }}>Create a task →</Link>
+                </div>
               ) : myTasks.map((task, i) => {
                 const dateInfo = formatDate(task.due_date)
                 return (
-                  <div
-                    key={task.id}
-                    style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 16px', borderBottom: i < myTasks.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.1s', cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = rowHover}
-                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                  <Link key={task.id} href="/dashboard/tasks" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < myTasks.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.1s' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = rowHover}
+                    onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
                   >
-                    <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: `1.5px solid ${task.status === 'in progress' ? '#f59e0b' : border}`, flexShrink: 0, background: task.status === 'in progress' ? 'rgba(245,158,11,0.1)' : 'transparent' }} />
+                    <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: `1.5px solid ${task.status === 'in progress' ? '#f59e0b' : border}`, flexShrink: 0, background: task.status === 'in progress' ? 'rgba(245,158,11,0.12)' : 'transparent' }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</p>
-                      {task.productions && <p style={{ fontSize: '11px', color: muted, margin: '2px 0 0' }}>{task.productions.title}</p>}
+                      <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.title}</p>
+                      {task.productions && <p style={{ fontSize: '11px', color: muted, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.productions.title}</p>}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px', flexShrink: 0 }}>
                       {statusBadge(task.status)}
-                      {dateInfo && <span style={{ fontSize: '10px', color: dateInfo.color, fontWeight: 500 }}>{dateInfo.label}</span>}
+                      {dateInfo && <span style={{ fontSize: '10px', color: dateInfo.color, fontWeight: 600 }}>{dateInfo.label}</span>}
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
             </div>
 
-            {/* My productions */}
-            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
+            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: `1px solid ${border}` }}>
-                <h2 style={{ fontSize: '14px', fontWeight: 600, color: text, margin: 0 }}>My productions</h2>
-                <Link href="/dashboard/productions" style={{ fontSize: '12px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
+                <h2 style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0 }}>My productions</h2>
+                <Link href="/dashboard/productions" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
               </div>
               {myProductions.length === 0 ? (
-                <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '32px 20px', margin: 0 }}>No active productions</p>
+                <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '14px', color: muted, margin: '0 0 8px' }}>No active productions</p>
+                  <Link href="/dashboard/productions" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none' }}>Browse productions →</Link>
+                </div>
               ) : myProductions.map((prod, i) => {
                 const progress = getProgress(prod)
                 const typeLabel = prod.request_type_label || prod.type || 'Unknown'
                 return (
-                  <Link
-                    key={prod.id}
-                    href={`/dashboard/productions/${prod.id}`}
-                    style={{ textDecoration: 'none', display: 'block', padding: '12px 16px', borderBottom: i < myProductions.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.1s' }}
+                  <Link key={prod.id} href={`/dashboard/productions/${prod.id}`} style={{ textDecoration: 'none', display: 'block', padding: '12px 16px', borderBottom: i < myProductions.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.1s' }}
                     onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = rowHover}
                     onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{prod.title}</p>
-                      <span style={{ fontSize: '10px', color: muted, marginLeft: '8px', flexShrink: 0 }}>{progress ? `${progress.pct}%` : 'No checklist'}</span>
+                      <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1, paddingRight: '8px' }}>{prod.title}</p>
+                      <span style={{ fontSize: '11px', color: muted, flexShrink: 0 }}>{progress ? `${progress.pct}%` : '—'}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ flex: 1, height: '4px', background: dark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
-                        {progress && <div style={{ width: `${progress.pct}%`, height: '100%', background: progress.pct === 100 ? '#22c55e' : '#3b82f6', borderRadius: '2px', transition: 'width 0.3s' }} />}
+                        {progress && <div style={{ width: `${progress.pct}%`, height: '100%', background: progress.pct === 100 ? '#22c55e' : '#3b82f6', borderRadius: '2px' }} />}
                       </div>
-                      <span style={{ fontSize: '11px', color: muted, flexShrink: 0 }}>{typeLabel}</span>
+                      <span style={{ fontSize: '11px', color: muted, flexShrink: 0, maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{typeLabel}</span>
                     </div>
                   </Link>
                 )
@@ -350,54 +271,51 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* TEAM VIEW */}
       {view === 'team' && (
         <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }} className="metric-grid">
             {[
-              { label: 'Team members', value: teamMembers.length.toString(), sub: 'active' },
-              { label: 'Open tasks', value: allTasks.length.toString(), sub: 'across team' },
-              { label: 'High priority', value: allTasks.filter(t => t.priority === 'high').length.toString(), sub: 'team wide' },
-              { label: 'Today', value: new Date().toLocaleDateString('en-US', { weekday: 'short' }), sub: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) },
+              { label: 'Team members', value: String(teamMembers.length), sub: 'active' },
+              { label: 'Open tasks', value: String(allTasks.length), sub: 'across team' },
+              { label: 'High priority', value: String(allTasks.filter(t => t.priority === 'high' || t.priority === 'day of').length), sub: 'team wide' },
+              { label: 'Productions', value: String(totalProductions), sub: 'total in system' },
             ].map(({ label, value, sub }) => (
-              <div key={label} style={{ background: metricBg, borderRadius: '12px', padding: '16px 18px', border: `1px solid ${border}` }}>
-                <p style={{ fontSize: '11px', fontWeight: 500, color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>{label}</p>
-                <p style={{ fontSize: '32px', fontWeight: 700, color: text, margin: '0 0 2px', lineHeight: 1 }}>{value}</p>
+              <div key={label} style={{ background: metricBg, borderRadius: '14px', padding: '16px', border: `1px solid ${border}` }}>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.8px' }}>{label}</p>
+                <p style={{ fontSize: '30px', fontWeight: 700, color: text, margin: '0 0 2px', lineHeight: 1 }}>{value}</p>
                 <p style={{ fontSize: '11px', color: muted, margin: 0 }}>{sub}</p>
               </div>
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px' }}>
+            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden' }}>
               <div style={{ padding: '14px 16px', borderBottom: `1px solid ${border}` }}>
-                <h2 style={{ fontSize: '14px', fontWeight: 600, color: text, margin: 0 }}>Team</h2>
+                <h2 style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0 }}>Team</h2>
               </div>
               {teamMembers.map((member, i) => (
-                <div key={member.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', borderBottom: i < teamMembers.length - 1 ? `1px solid ${border}` : 'none' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>
-                    {member.name.slice(0, 2).toUpperCase()}
-                  </div>
+                <div key={member.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < teamMembers.length - 1 ? `1px solid ${border}` : 'none' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>{member.name.slice(0, 2).toUpperCase()}</div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0 }}>{member.name}</p>
-                    <p style={{ fontSize: '11px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{member.role}</p>
+                    <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0 }}>{member.name}</p>
+                    <p style={{ fontSize: '12px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{member.role}</p>
                   </div>
-                  <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '20px', background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontWeight: 500 }}>Active</span>
+                  <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontWeight: 600 }}>Active</span>
                 </div>
               ))}
             </div>
 
-            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
+            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: `1px solid ${border}` }}>
-                <h2 style={{ fontSize: '14px', fontWeight: 600, color: text, margin: 0 }}>All open tasks</h2>
-                <Link href="/dashboard/tasks" style={{ fontSize: '12px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
+                <h2 style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0 }}>All open tasks</h2>
+                <Link href="/dashboard/tasks" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
               </div>
               {allTasks.length === 0 ? (
                 <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '32px 20px', margin: 0 }}>No open tasks</p>
               ) : allTasks.map((task, i) => (
-                <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', borderBottom: i < allTasks.length - 1 ? `1px solid ${border}` : 'none' }}>
+                <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < allTasks.length - 1 ? `1px solid ${border}` : 'none' }}>
                   <div style={{ width: '14px', height: '14px', borderRadius: '3px', border: `1.5px solid ${border}`, flexShrink: 0 }} />
-                  <p style={{ fontSize: '13px', color: text, margin: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</p>
+                  <p style={{ fontSize: '13px', color: text, margin: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.title}</p>
                   {statusBadge(task.status)}
                 </div>
               ))}
@@ -405,6 +323,14 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      <style>{`
+        @media (min-width: 640px) {
+          .metric-grid { grid-template-columns: repeat(5, 1fr) !important; }
+          .quick-grid { grid-template-columns: repeat(4, 1fr) !important; }
+        }
+        @media (min-width: 640px) .metric-grid-team { grid-template-columns: repeat(4, 1fr) !important; }
+      `}</style>
     </div>
   )
 }
