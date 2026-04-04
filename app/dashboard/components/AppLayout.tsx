@@ -143,7 +143,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const NavLink = ({ href, icon, label, onClick }: { href: string; icon: string; label: string; onClick?: () => void }) => (
     <Link href={href} onClick={onClick} style={{
       display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px',
-      borderRadius: '8px', fontSize: '13px', marginBottom: '2px', textDecoration: 'none',
+      borderRadius: '8px', fontSize: '15px', marginBottom: '2px', textDecoration: 'none',
       borderLeft: isActive(href) ? '2px solid #1e6cb5' : '2px solid transparent',
       background: isActive(href) ? 'rgba(30,108,181,0.12)' : 'transparent',
       color: isActive(href) ? '#5ba3e0' : muted,
@@ -174,12 +174,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {userName.slice(0, 2).toUpperCase()}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{userName}</p>
-              <p style={{ fontSize: '11px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{userRole}</p>
+              <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{userName}</p>
+              <p style={{ fontSize: '13px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{userRole}</p>
             </div>
           </div>
         )}
-        <button onClick={handleSignOut} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderRadius: '8px', fontSize: '13px', color: muted, background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit', minHeight: '40px' }}>
+        <button onClick={handleSignOut} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderRadius: '8px', fontSize: '15px', color: muted, background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontFamily: 'inherit', minHeight: '40px' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Sign out
         </button>
@@ -208,7 +208,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: sidebar, borderRadius: '20px 20px 0 0', padding: '12px 16px 40px', zIndex: 1 }} onClick={e => e.stopPropagation()}>
             <div style={{ width: '36px', height: '4px', background: border, borderRadius: '2px', margin: '0 auto 20px' }} />
-            <p style={{ fontSize: '11px', fontWeight: 600, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px 4px' }}>More</p>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px 4px' }}>More</p>
             {MORE_ITEMS.map(item => (
               <Link key={item.href} href={item.href} onClick={() => setShowMore(false)} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 12px', borderRadius: '12px', textDecoration: 'none', marginBottom: '4px', background: isActive(item.href) ? 'rgba(30,108,181,0.12)' : 'transparent', color: isActive(item.href) ? '#5ba3e0' : text }}>
                 <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: isActive(item.href) ? 'rgba(30,108,181,0.2)' : (dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'), display: 'flex', alignItems: 'center', justifyContent: 'center', color: isActive(item.href) ? '#5ba3e0' : muted }}>
@@ -235,7 +235,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
           <button onClick={() => { setShowSearch(true); setShowNotifications(false) }} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', background: searchBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '9px 14px', cursor: 'text', minHeight: '44px' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <span className="csdtv-search-label" style={{ fontSize: '13px', color: muted }}>Search productions, tasks, knowledge base...</span>
+            <span className="csdtv-search-label" style={{ fontSize: '15px', color: muted }}>Search productions, tasks, knowledge base...</span>
           </button>
           <button onClick={() => { setShowNotifications(!showNotifications); setShowSearch(false) }} style={{ position: 'relative', width: '44px', height: '44px', borderRadius: '10px', background: iconBg, border: `0.5px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: muted, flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>

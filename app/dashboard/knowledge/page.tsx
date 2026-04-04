@@ -110,7 +110,7 @@ export default function KnowledgePage() {
         <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
           {selected && !editing && (
             <button onClick={() => { setEditing(true); setForm({ title: selected.title, content: selected.content, category: selected.category }) }}
-              style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>
+              style={{ fontSize: '15px', padding: '8px 16px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>
               Edit
             </button>
           )}
@@ -133,10 +133,10 @@ export default function KnowledgePage() {
         ) : selected ? (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-              <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: (CAT_STYLES[selected.category] || CAT_STYLES.Other).bg, color: (CAT_STYLES[selected.category] || CAT_STYLES.Other).color, fontWeight: 500 }}>{selected.category}</span>
+              <span style={{ fontSize: '13px', padding: '3px 10px', borderRadius: '6px', background: (CAT_STYLES[selected.category] || CAT_STYLES.Other).bg, color: (CAT_STYLES[selected.category] || CAT_STYLES.Other).color, fontWeight: 500 }}>{selected.category}</span>
             </div>
             <h2 style={{ fontSize: '20px', fontWeight: 600, color: text, margin: '0 0 6px', lineHeight: 1.3 }}>{selected.title}</h2>
-            <p style={{ fontSize: '12px', color: muted, margin: '0 0 24px' }}>
+            <p style={{ fontSize: '14px', color: muted, margin: '0 0 24px' }}>
               {selected.author?.name && `By ${selected.author.name} · `}
               Updated {new Date(selected.updated_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
@@ -156,7 +156,7 @@ export default function KnowledgePage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 500, color: text, margin: 0 }}>Knowledge base</h1>
-          <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>{articles.length} articles</p>
+          <p style={{ fontSize: '15px', color: muted, margin: '2px 0 0' }}>{articles.length} articles</p>
         </div>
         <button onClick={() => { setShowNew(true); setSelected(null); setForm({ title: '', content: '', category: 'Process' }); setShowMobileDetail(true) }}
           style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', padding: '10px 18px', borderRadius: '10px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, minHeight: '44px' }}>
@@ -180,7 +180,7 @@ export default function KnowledgePage() {
               const active = catFilter === cat
               const cs = cat !== 'all' ? CAT_STYLES[cat] : null
               return (
-                <button key={cat} onClick={() => setCatFilter(cat)} style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '8px', border: `0.5px solid ${active && cs ? cs.color : border}`, background: active && cs ? cs.bg : active ? '#1e6cb5' : cardBg, color: active && cs ? cs.color : active ? '#fff' : muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '36px' }}>
+                <button key={cat} onClick={() => setCatFilter(cat)} style={{ fontSize: '14px', padding: '6px 14px', borderRadius: '8px', border: `0.5px solid ${active && cs ? cs.color : border}`, background: active && cs ? cs.bg : active ? '#1e6cb5' : cardBg, color: active && cs ? cs.color : active ? '#fff' : muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '36px' }}>
                   {cat === 'all' ? 'All' : cat}
                 </button>
               )
@@ -192,10 +192,10 @@ export default function KnowledgePage() {
               {articles.length === 0 ? (
                 <div>
                   <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: '0 0 6px' }}>No articles yet</p>
-                  <p style={{ fontSize: '13px', color: muted, margin: '0 0 16px' }}>Start documenting your team's processes</p>
+                  <p style={{ fontSize: '15px', color: muted, margin: '0 0 16px' }}>Start documenting your team's processes</p>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
                     {STARTER_ARTICLES.map(s => (
-                      <button key={s.title} onClick={() => { setForm({ title: s.title, content: s.content, category: s.category }); setShowNew(true); setShowMobileDetail(true) }} style={{ fontSize: '12px', padding: '8px 14px', borderRadius: '8px', background: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      <button key={s.title} onClick={() => { setForm({ title: s.title, content: s.content, category: s.category }); setShowNew(true); setShowMobileDetail(true) }} style={{ fontSize: '14px', padding: '8px 14px', borderRadius: '8px', background: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit' }}>
                         + {s.title}
                       </button>
                     ))}
@@ -219,7 +219,7 @@ export default function KnowledgePage() {
                       <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0, flex: 1 }}>{article.title}</p>
                       <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '6px', background: cs.bg, color: cs.color, flexShrink: 0, fontWeight: 500 }}>{article.category}</span>
                     </div>
-                    <p style={{ fontSize: '12px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    <p style={{ fontSize: '14px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                       {article.content.slice(0, 90)}
                     </p>
                   </div>

@@ -122,7 +122,7 @@ export default function DashboardPage() {
   const statusBadge = (status: string) => {
     const s = status?.toLowerCase()
     const st = { 'in progress': { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b' }, 'pending': { bg: 'rgba(100,116,139,0.15)', color: '#94a3b8' }, 'complete': { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' } }[s] || { bg: 'rgba(100,116,139,0.15)', color: '#94a3b8' }
-    return <span style={{ fontSize: '12px', fontWeight: 500, padding: '4px 10px', borderRadius: '20px', background: st.bg, color: st.color, whiteSpace: 'nowrap' as const }}>{status}</span>
+    return <span style={{ fontSize: '14px', fontWeight: 500, padding: '4px 10px', borderRadius: '20px', background: st.bg, color: st.color, whiteSpace: 'nowrap' as const }}>{status}</span>
   }
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading...</p></div>
@@ -147,13 +147,13 @@ export default function DashboardPage() {
       {/* Today's productions */}
       {todayProductions.length > 0 && (
         <div style={{ background: 'rgba(30,108,181,0.08)', border: '1px solid rgba(30,108,181,0.2)', borderRadius: '14px', padding: '14px 20px', marginBottom: '20px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: '#5ba3e0', margin: '0 0 10px', textTransform: 'uppercase' as const, letterSpacing: '0.8px' }}>🎬 Today's productions</p>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#5ba3e0', margin: '0 0 10px', textTransform: 'uppercase' as const, letterSpacing: '0.8px' }}>🎬 Today's productions</p>
           <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
             {todayProductions.map(p => (
               <Link key={p.id} href={`/dashboard/productions/${p.id}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-                <span style={{ fontSize: '13px', color: muted }}>#{p.production_number}</span>
+                <span style={{ fontSize: '15px', color: muted }}>#{p.production_number}</span>
                 <span style={{ fontSize: '15px', fontWeight: 500, color: text }}>{p.title}</span>
-                <span style={{ fontSize: '12px', color: '#5ba3e0', background: 'rgba(30,108,181,0.12)', padding: '3px 10px', borderRadius: '6px' }}>{p.request_type_label || 'Production'}</span>
+                <span style={{ fontSize: '14px', color: '#5ba3e0', background: 'rgba(30,108,181,0.12)', padding: '3px 10px', borderRadius: '6px' }}>{p.request_type_label || 'Production'}</span>
               </Link>
             ))}
           </div>
@@ -181,9 +181,9 @@ export default function DashboardPage() {
               { label: 'My productions', value: String(myProductions.length), sub: 'you are assigned to', hi: false },
             ].map(({ label, value, sub, hi, color, valueColor }) => (
               <div key={label} style={{ background: hi ? `${color}12` : metricBg, borderRadius: '16px', padding: '20px 24px', border: `1px solid ${hi ? `${color}35` : border}` }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: hi ? color : muted, margin: '0 0 8px', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>{label}</p>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: hi ? color : muted, margin: '0 0 8px', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>{label}</p>
                 <p style={{ fontSize: '38px', fontWeight: 800, color: valueColor || (hi ? color : text), margin: '0 0 4px', lineHeight: 1 }}>{value}</p>
-                <p style={{ fontSize: '13px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{sub}</p>
+                <p style={{ fontSize: '15px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{sub}</p>
               </div>
             ))}
           </div>
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                   <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>{icon}</div>
                   <div>
                     <p style={{ fontSize: '15px', fontWeight: 700, color: text, margin: 0 }}>{label}</p>
-                    <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>{desc}</p>
+                    <p style={{ fontSize: '15px', color: muted, margin: '2px 0 0' }}>{desc}</p>
                   </div>
                 </div>
               </Link>
@@ -230,11 +230,11 @@ export default function DashboardPage() {
                       <div style={{ width: '18px', height: '18px', borderRadius: '5px', border: `2px solid ${task.status === 'in progress' ? '#f59e0b' : border}`, flexShrink: 0, background: task.status === 'in progress' ? 'rgba(245,158,11,0.12)' : 'transparent' }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.title}</p>
-                        {task.productions && <p style={{ fontSize: '12px', color: muted, margin: '3px 0 0' }}>{task.productions.title}</p>}
+                        {task.productions && <p style={{ fontSize: '14px', color: muted, margin: '3px 0 0' }}>{task.productions.title}</p>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
                         {statusBadge(task.status)}
-                        {dateInfo && <span style={{ fontSize: '11px', color: dateInfo.color, fontWeight: 700 }}>{dateInfo.label}</span>}
+                        {dateInfo && <span style={{ fontSize: '13px', color: dateInfo.color, fontWeight: 700 }}>{dateInfo.label}</span>}
                       </div>
                     </Link>
                   )
@@ -263,13 +263,13 @@ export default function DashboardPage() {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                         <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1, paddingRight: '10px' }}>{prod.title}</p>
-                        <span style={{ fontSize: '12px', color: muted, flexShrink: 0, fontWeight: 500 }}>{progress ? `${progress.pct}%` : '—'}</span>
+                        <span style={{ fontSize: '14px', color: muted, flexShrink: 0, fontWeight: 500 }}>{progress ? `${progress.pct}%` : '—'}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ flex: 1, height: '5px', background: dark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
                           {progress && <div style={{ width: `${progress.pct}%`, height: '100%', background: progress.pct === 100 ? '#22c55e' : '#3b82f6', borderRadius: '3px' }} />}
                         </div>
-                        <span style={{ fontSize: '12px', color: muted, flexShrink: 0, maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{typeLabel}</span>
+                        <span style={{ fontSize: '14px', color: muted, flexShrink: 0, maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{typeLabel}</span>
                       </div>
                     </Link>
                   )
@@ -290,9 +290,9 @@ export default function DashboardPage() {
               { label: 'Total productions', value: String(totalProductions), sub: 'in system' },
             ].map(({ label, value, sub }) => (
               <div key={label} style={{ background: metricBg, borderRadius: '16px', padding: '20px 24px', border: `1px solid ${border}` }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: muted, margin: '0 0 8px', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>{label}</p>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: muted, margin: '0 0 8px', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>{label}</p>
                 <p style={{ fontSize: '38px', fontWeight: 800, color: text, margin: '0 0 4px', lineHeight: 1 }}>{value}</p>
-                <p style={{ fontSize: '13px', color: muted, margin: 0 }}>{sub}</p>
+                <p style={{ fontSize: '15px', color: muted, margin: 0 }}>{sub}</p>
               </div>
             ))}
           </div>
@@ -306,9 +306,9 @@ export default function DashboardPage() {
                   <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>{member.name.slice(0, 2).toUpperCase()}</div>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0 }}>{member.name}</p>
-                    <p style={{ fontSize: '13px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{member.role}</p>
+                    <p style={{ fontSize: '15px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{member.role}</p>
                   </div>
-                  <span style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '20px', background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontWeight: 600 }}>Active</span>
+                  <span style={{ fontSize: '14px', padding: '4px 12px', borderRadius: '20px', background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontWeight: 600 }}>Active</span>
                 </div>
               ))}
             </div>

@@ -173,13 +173,13 @@ export default function SchedulePage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 500, color: text, margin: 0 }}>Schedule</h1>
-          <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>{formatWeek(currentMonday)}</p>
+          <p style={{ fontSize: '15px', color: muted, margin: '2px 0 0' }}>{formatWeek(currentMonday)}</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={() => setWeekOffset(p => p - 1)} style={{ width: '44px', height: '44px', borderRadius: '10px', background: cardBg, border: `0.5px solid ${border}`, color: text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <button onClick={() => setWeekOffset(0)} style={{ fontSize: '13px', padding: '0 16px', height: '44px', borderRadius: '10px', background: cardBg, border: `0.5px solid ${border}`, color: weekOffset === 0 ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit', fontWeight: weekOffset === 0 ? 600 : 400 }}>
+          <button onClick={() => setWeekOffset(0)} style={{ fontSize: '15px', padding: '0 16px', height: '44px', borderRadius: '10px', background: cardBg, border: `0.5px solid ${border}`, color: weekOffset === 0 ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit', fontWeight: weekOffset === 0 ? 600 : 400 }}>
             This week
           </button>
           <button onClick={() => setWeekOffset(p => p + 1)} style={{ width: '44px', height: '44px', borderRadius: '10px', background: cardBg, border: `0.5px solid ${border}`, color: text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -195,12 +195,12 @@ export default function SchedulePage() {
           {team.map(member => (
             <div key={member.id} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderBottom: `0.5px solid ${border}` }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>
                   {member.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div>
                   <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0 }}>{member.name}</p>
-                  <p style={{ fontSize: '11px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{member.role}{hasOverride(member.id) ? ' · Modified this week' : ''}</p>
+                  <p style={{ fontSize: '13px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{member.role}{hasOverride(member.id) ? ' · Modified this week' : ''}</p>
                 </div>
               </div>
               <div>
@@ -208,11 +208,11 @@ export default function SchedulePage() {
                   const val = getScheduleDay(member.id, day)
                   return (
                     <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: i < DAYS.length - 1 ? `0.5px solid ${border}` : 'none' }}>
-                      <span style={{ fontSize: '13px', color: muted, minWidth: '40px' }}>{DAY_LABELS[i]}</span>
+                      <span style={{ fontSize: '15px', color: muted, minWidth: '40px' }}>{DAY_LABELS[i]}</span>
                       {val ? (
-                        <span style={{ fontSize: '13px', fontWeight: 500, padding: '4px 12px', borderRadius: '8px', background: `${member.avatar_color}20`, color: member.avatar_color }}>{val}</span>
+                        <span style={{ fontSize: '15px', fontWeight: 500, padding: '4px 12px', borderRadius: '8px', background: `${member.avatar_color}20`, color: member.avatar_color }}>{val}</span>
                       ) : (
-                        <span style={{ fontSize: '12px', color: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)' }}>Off / Not set</span>
+                        <span style={{ fontSize: '14px', color: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)' }}>Off / Not set</span>
                       )}
                     </div>
                   )
@@ -225,9 +225,9 @@ export default function SchedulePage() {
         /* Desktop: Grid */
         <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '160px repeat(5, 1fr)', borderBottom: `0.5px solid ${border}` }}>
-            <div style={{ padding: '12px 14px', fontSize: '11px', color: muted, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.5px', background: dark ? 'rgba(255,255,255,0.02)' : '#f8f9fc' }}>Person</div>
+            <div style={{ padding: '12px 14px', fontSize: '13px', color: muted, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.5px', background: dark ? 'rgba(255,255,255,0.02)' : '#f8f9fc' }}>Person</div>
             {DAY_FULL.map((d, i) => (
-              <div key={d} style={{ padding: '12px 8px', fontSize: '11px', color: muted, fontWeight: 600, textAlign: 'center' as const, textTransform: 'uppercase' as const, letterSpacing: '0.5px', background: dark ? 'rgba(255,255,255,0.02)' : '#f8f9fc' }}>{DAY_LABELS[i]}</div>
+              <div key={d} style={{ padding: '12px 8px', fontSize: '13px', color: muted, fontWeight: 600, textAlign: 'center' as const, textTransform: 'uppercase' as const, letterSpacing: '0.5px', background: dark ? 'rgba(255,255,255,0.02)' : '#f8f9fc' }}>{DAY_LABELS[i]}</div>
             ))}
           </div>
           {team.map(member => (
@@ -237,7 +237,7 @@ export default function SchedulePage() {
                   {member.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0 }}>{member.name.split(' ')[0]}</p>
+                  <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0 }}>{member.name.split(' ')[0]}</p>
                   {hasOverride(member.id) && <p style={{ fontSize: '9px', color: '#5ba3e0', margin: 0, fontWeight: 600 }}>MODIFIED</p>}
                 </div>
               </div>
@@ -246,9 +246,9 @@ export default function SchedulePage() {
                 return (
                   <div key={day} style={{ padding: '12px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {val ? (
-                      <span style={{ fontSize: '12px', fontWeight: 500, padding: '4px 10px', borderRadius: '8px', background: `${member.avatar_color}22`, color: member.avatar_color, whiteSpace: 'nowrap' as const }}>{val}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 500, padding: '4px 10px', borderRadius: '8px', background: `${member.avatar_color}22`, color: member.avatar_color, whiteSpace: 'nowrap' as const }}>{val}</span>
                     ) : (
-                      <span style={{ fontSize: '11px', color: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)' }}>—</span>
+                      <span style={{ fontSize: '13px', color: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)' }}>—</span>
                     )}
                   </div>
                 )
@@ -266,9 +266,9 @@ export default function SchedulePage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div>
               <h3 style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0 }}>My default schedule</h3>
-              <p style={{ fontSize: '12px', color: muted, margin: '2px 0 0' }}>Repeats every week</p>
+              <p style={{ fontSize: '14px', color: muted, margin: '2px 0 0' }}>Repeats every week</p>
             </div>
-            <button onClick={() => setEditingDefault(!editingDefault)} style={{ fontSize: '13px', padding: '8px 14px', borderRadius: '8px', background: editingDefault ? (dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9') : 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}>
+            <button onClick={() => setEditingDefault(!editingDefault)} style={{ fontSize: '15px', padding: '8px 14px', borderRadius: '8px', background: editingDefault ? (dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9') : 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}>
               {editingDefault ? 'Cancel' : 'Edit'}
             </button>
           </div>
@@ -276,7 +276,7 @@ export default function SchedulePage() {
             <div>
               {DAYS.map((day, i) => (
                 <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '13px', color: muted, minWidth: '44px', fontWeight: 500 }}>{DAY_LABELS[i]}</span>
+                  <span style={{ fontSize: '15px', color: muted, minWidth: '44px', fontWeight: 500 }}>{DAY_LABELS[i]}</span>
                   <input value={myDefault[day] || ''} onChange={e => setMyDefault(p => ({ ...p, [day]: e.target.value }))} placeholder="e.g. 9am–5pm or Off" style={inputStyle} />
                 </div>
               ))}
@@ -292,8 +292,8 @@ export default function SchedulePage() {
                 const val = def ? def[day] : null
                 return (
                   <div key={day} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `0.5px solid ${border}` }}>
-                    <span style={{ fontSize: '13px', color: muted }}>{DAY_FULL[i]}</span>
-                    <span style={{ fontSize: '13px', fontWeight: val ? 500 : 400, color: val ? text : muted }}>{val || 'Not set'}</span>
+                    <span style={{ fontSize: '15px', color: muted }}>{DAY_FULL[i]}</span>
+                    <span style={{ fontSize: '15px', fontWeight: val ? 500 : 400, color: val ? text : muted }}>{val || 'Not set'}</span>
                   </div>
                 )
               })}
@@ -306,9 +306,9 @@ export default function SchedulePage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <div>
               <h3 style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0 }}>This week only</h3>
-              <p style={{ fontSize: '12px', color: muted, margin: '2px 0 0' }}>Override your default</p>
+              <p style={{ fontSize: '14px', color: muted, margin: '2px 0 0' }}>Override your default</p>
             </div>
-            <button onClick={() => setEditingOverride(!editingOverride)} style={{ fontSize: '13px', padding: '8px 14px', borderRadius: '8px', background: editingOverride ? (dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9') : 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}>
+            <button onClick={() => setEditingOverride(!editingOverride)} style={{ fontSize: '15px', padding: '8px 14px', borderRadius: '8px', background: editingOverride ? (dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9') : 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}>
               {editingOverride ? 'Cancel' : 'Edit'}
             </button>
           </div>
@@ -316,7 +316,7 @@ export default function SchedulePage() {
             <div>
               {DAYS.map((day, i) => (
                 <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '13px', color: muted, minWidth: '44px', fontWeight: 500 }}>{DAY_LABELS[i]}</span>
+                  <span style={{ fontSize: '15px', color: muted, minWidth: '44px', fontWeight: 500 }}>{DAY_LABELS[i]}</span>
                   <input value={myOverride[day] || ''} onChange={e => setMyOverride(p => ({ ...p, [day]: e.target.value }))} placeholder="e.g. 9am–1pm or Off" style={inputStyle} />
                 </div>
               ))}
@@ -333,8 +333,8 @@ export default function SchedulePage() {
                 const val = ov ? ov[day] : null
                 return (
                   <div key={day} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `0.5px solid ${border}` }}>
-                    <span style={{ fontSize: '13px', color: muted }}>{DAY_FULL[i]}</span>
-                    <span style={{ fontSize: '13px', fontWeight: val ? 500 : 400, color: val ? '#5ba3e0' : muted }}>{val || 'Using default'}</span>
+                    <span style={{ fontSize: '15px', color: muted }}>{DAY_FULL[i]}</span>
+                    <span style={{ fontSize: '15px', fontWeight: val ? 500 : 400, color: val ? '#5ba3e0' : muted }}>{val || 'Using default'}</span>
                   </div>
                 )
               })}

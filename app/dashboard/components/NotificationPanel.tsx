@@ -85,7 +85,7 @@ export default function NotificationPanel({ onClose, onUnreadChange }: Props) {
         <h3 style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0 }}>Notifications</h3>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {notifications.some(n => !n.read) && (
-            <button onClick={markAllRead} style={{ fontSize: '11px', color: '#5ba3e0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Mark all read</button>
+            <button onClick={markAllRead} style={{ fontSize: '13px', color: '#5ba3e0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Mark all read</button>
           )}
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>×</button>
         </div>
@@ -93,10 +93,10 @@ export default function NotificationPanel({ onClose, onUnreadChange }: Props) {
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading ? (
-          <p style={{ color: muted, fontSize: '13px', textAlign: 'center', padding: '20px' }}>Loading...</p>
+          <p style={{ color: muted, fontSize: '15px', textAlign: 'center', padding: '20px' }}>Loading...</p>
         ) : notifications.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <p style={{ fontSize: '13px', color: muted, margin: 0 }}>No notifications yet</p>
+            <p style={{ fontSize: '15px', color: muted, margin: 0 }}>No notifications yet</p>
           </div>
         ) : notifications.map(n => (
           <div
@@ -106,8 +106,8 @@ export default function NotificationPanel({ onClose, onUnreadChange }: Props) {
           >
             <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '1px' }}>{typeIcon(n.type)}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '13px', fontWeight: n.read ? 400 : 500, color: text, margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</p>
-              {n.body && <p style={{ fontSize: '11px', color: muted, margin: '0 0 3px', lineHeight: 1.4 }}>{n.body}</p>}
+              <p style={{ fontSize: '15px', fontWeight: n.read ? 400 : 500, color: text, margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</p>
+              {n.body && <p style={{ fontSize: '13px', color: muted, margin: '0 0 3px', lineHeight: 1.4 }}>{n.body}</p>}
               <p style={{ fontSize: '10px', color: muted, margin: 0 }}>{formatTime(n.created_at)}</p>
             </div>
             {!n.read && <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#1e6cb5', flexShrink: 0, marginTop: '4px' }} />}

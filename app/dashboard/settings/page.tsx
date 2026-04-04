@@ -151,27 +151,27 @@ export default function SettingsPage() {
     <div style={{ maxWidth: '700px', margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <h1 style={{ fontSize: '22px', fontWeight: 500, color: text, margin: 0 }}>Settings</h1>
-        {savedMsg && <span style={{ fontSize: '12px', color: '#22c55e', background: 'rgba(34,197,94,0.1)', padding: '6px 14px', borderRadius: '8px' }}>{savedMsg}</span>}
+        {savedMsg && <span style={{ fontSize: '14px', color: '#22c55e', background: 'rgba(34,197,94,0.1)', padding: '6px 14px', borderRadius: '8px' }}>{savedMsg}</span>}
       </div>
 
       {/* Profile */}
       <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <h2 style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0 }}>Profile</h2>
-          <button onClick={() => setEditingProfile(!editingProfile)} style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}>{editingProfile ? 'Cancel' : 'Edit'}</button>
+          <button onClick={() => setEditingProfile(!editingProfile)} style={{ fontSize: '15px', padding: '7px 14px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}>{editingProfile ? 'Cancel' : 'Edit'}</button>
         </div>
         {editingProfile ? (
           <div>
             <div style={{ marginBottom: '10px' }}>
-              <label style={{ fontSize: '12px', color: muted, display: 'block', marginBottom: '4px' }}>Name</label>
+              <label style={{ fontSize: '14px', color: muted, display: 'block', marginBottom: '4px' }}>Name</label>
               <input value={profileForm.name} onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))} style={inputStyle} />
             </div>
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ fontSize: '12px', color: muted, display: 'block', marginBottom: '4px' }}>Email</label>
+              <label style={{ fontSize: '14px', color: muted, display: 'block', marginBottom: '4px' }}>Email</label>
               <input value={profileForm.email} onChange={e => setProfileForm(p => ({ ...p, email: e.target.value }))} style={inputStyle} />
             </div>
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ fontSize: '12px', color: muted, display: 'block', marginBottom: '8px' }}>Avatar color</label>
+              <label style={{ fontSize: '14px', color: muted, display: 'block', marginBottom: '8px' }}>Avatar color</label>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {AVATAR_COLORS.map(c => (
                   <button key={c} onClick={() => setSelectedColor(c)} style={{ width: '32px', height: '32px', borderRadius: '50%', background: c, border: selectedColor === c ? `3px solid ${text}` : '3px solid transparent', cursor: 'pointer', boxShadow: selectedColor === c ? `0 0 0 2px ${c}40` : 'none' }} />
@@ -187,8 +187,8 @@ export default function SettingsPage() {
             </div>
             <div>
               <p style={{ fontSize: '16px', fontWeight: 500, color: text, margin: 0 }}>{currentUser?.name}</p>
-              <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>{currentUser?.email}</p>
-              <p style={{ fontSize: '12px', color: muted, margin: '2px 0 0', textTransform: 'capitalize' as const }}>{currentUser?.role}</p>
+              <p style={{ fontSize: '15px', color: muted, margin: '2px 0 0' }}>{currentUser?.email}</p>
+              <p style={{ fontSize: '14px', color: muted, margin: '2px 0 0', textTransform: 'capitalize' as const }}>{currentUser?.role}</p>
             </div>
           </div>
         )}
@@ -200,7 +200,7 @@ export default function SettingsPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '44px' }}>
           <div>
             <p style={{ fontSize: '14px', color: text, margin: 0 }}>Dark mode</p>
-            <p style={{ fontSize: '12px', color: muted, margin: '2px 0 0' }}>Toggle between dark and light theme</p>
+            <p style={{ fontSize: '14px', color: muted, margin: '2px 0 0' }}>Toggle between dark and light theme</p>
           </div>
           <Toggle checked={dark} onChange={toggleTheme} />
         </div>
@@ -213,15 +213,15 @@ export default function SettingsPage() {
           <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: `0.5px solid ${border}` }}>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: '14px', color: text, margin: 0 }}>{label}</p>
-              <p style={{ fontSize: '12px', color: muted, margin: '2px 0 0' }}>{desc}</p>
+              <p style={{ fontSize: '14px', color: muted, margin: '2px 0 0' }}>{desc}</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                <span style={{ fontSize: '11px', color: muted }}>Email</span>
+                <span style={{ fontSize: '13px', color: muted }}>Email</span>
                 <Toggle checked={notifPrefs[emailKey]} onChange={v => setNotifPrefs(p => ({ ...p, [emailKey]: v }))} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                <span style={{ fontSize: '11px', color: muted }}>In-app</span>
+                <span style={{ fontSize: '13px', color: muted }}>In-app</span>
                 <Toggle checked={notifPrefs[inappKey]} onChange={v => setNotifPrefs(p => ({ ...p, [inappKey]: v }))} />
               </div>
             </div>
@@ -237,26 +237,26 @@ export default function SettingsPage() {
 
           {team.map(member => (
             <div key={member.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: `0.5px solid ${border}` }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>
                 {member.name.slice(0, 2).toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0 }}>{member.name}</p>
-                <p style={{ fontSize: '12px', color: muted, margin: 0 }}>
+                <p style={{ fontSize: '14px', color: muted, margin: 0 }}>
                   {member.email}
                   {!member.supabase_user_id && <span style={{ marginLeft: '6px', fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>Pending login</span>}
                 </p>
               </div>
-              <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '6px', background: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', color: muted }}>{member.role}</span>
+              <span style={{ fontSize: '14px', padding: '3px 10px', borderRadius: '6px', background: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', color: muted }}>{member.role}</span>
               {member.id !== currentUser?.id && (
-                <button onClick={() => deactivateMember(member.id, member.name)} style={{ fontSize: '12px', padding: '5px 10px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '36px' }}>Remove</button>
+                <button onClick={() => deactivateMember(member.id, member.name)} style={{ fontSize: '14px', padding: '5px 10px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '36px' }}>Remove</button>
               )}
             </div>
           ))}
 
           <div style={{ marginTop: '20px', padding: '16px', background: dark ? 'rgba(255,255,255,0.02)' : '#f8f9fc', borderRadius: '12px', border: `0.5px solid ${border}` }}>
             <h3 style={{ fontSize: '14px', fontWeight: 500, color: text, margin: '0 0 4px' }}>Invite team member</h3>
-            <p style={{ fontSize: '12px', color: muted, margin: '0 0 14px', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '14px', color: muted, margin: '0 0 14px', lineHeight: 1.5 }}>
               They'll be added to the team and can log in at <strong>csdtvstaff.org</strong> using their district email — no password needed, just a magic link sent to their inbox.
             </p>
             <div style={{ display: 'grid', gap: '8px', marginBottom: '10px' }}>
@@ -268,7 +268,7 @@ export default function SettingsPage() {
                   <option value="Intern">Intern</option>
                 </select>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '8px 12px' }}>
-                  <span style={{ fontSize: '12px', color: muted, flexShrink: 0 }}>Color:</span>
+                  <span style={{ fontSize: '14px', color: muted, flexShrink: 0 }}>Color:</span>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     {AVATAR_COLORS.slice(0, 5).map(c => (
                       <button key={c} onClick={() => setInviteColor(c)} style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, border: inviteColor === c ? `2px solid ${text}` : '2px solid transparent', cursor: 'pointer' }} />
@@ -282,7 +282,7 @@ export default function SettingsPage() {
             </button>
             {inviteResult && (
               <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: '10px', background: inviteResult.success ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', border: `0.5px solid ${inviteResult.success ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
-                <p style={{ fontSize: '13px', color: inviteResult.success ? '#22c55e' : '#ef4444', margin: 0, lineHeight: 1.5 }}>{inviteResult.message}</p>
+                <p style={{ fontSize: '15px', color: inviteResult.success ? '#22c55e' : '#ef4444', margin: 0, lineHeight: 1.5 }}>{inviteResult.message}</p>
               </div>
             )}
           </div>

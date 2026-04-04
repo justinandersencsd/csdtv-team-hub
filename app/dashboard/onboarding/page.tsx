@@ -81,7 +81,7 @@ export default function OnboardingPage() {
   const totalDone = tasks.filter(t => t.completed).length
   const progress = tasks.length > 0 ? Math.round((totalDone / tasks.length) * 100) : 0
 
-  const inputStyle: React.CSSProperties = { background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: text, fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' }
+  const inputStyle: React.CSSProperties = { background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 12px', fontSize: '15px', color: text, fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' }
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading onboarding...</p></div>
 
@@ -91,13 +91,13 @@ export default function OnboardingPage() {
       <div style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
           <h2 style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0 }}>Week {weekNum}</h2>
-          <span style={{ fontSize: '11px', color: muted }}>{done} of {weekTasks.length} complete</span>
+          <span style={{ fontSize: '13px', color: muted }}>{done} of {weekTasks.length} complete</span>
           <div style={{ flex: 1, height: '4px', background: dark ? 'rgba(255,255,255,0.06)' : '#e2e8f0', borderRadius: '2px', overflow: 'hidden', maxWidth: '100px' }}>
             <div style={{ width: `${weekTasks.length > 0 ? Math.round((done / weekTasks.length) * 100) : 0}%`, height: '100%', background: '#1e6cb5', borderRadius: '2px', transition: 'width 0.3s' }} />
           </div>
         </div>
         {weekTasks.length === 0 ? (
-          <p style={{ color: muted, fontSize: '13px', padding: '16px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px' }}>No tasks for week {weekNum} yet</p>
+          <p style={{ color: muted, fontSize: '15px', padding: '16px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px' }}>No tasks for week {weekNum} yet</p>
         ) : (
           <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', overflow: 'hidden' }}>
             {weekTasks.map((task, i) => (
@@ -109,15 +109,15 @@ export default function OnboardingPage() {
                   {task.completed && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
                 </button>
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '13px', fontWeight: 500, color: task.completed ? muted : text, margin: 0, textDecoration: task.completed ? 'line-through' : 'none' }}>{task.title}</p>
-                  {task.description && <p style={{ fontSize: '11px', color: muted, margin: '3px 0 0', lineHeight: 1.4 }}>{task.description}</p>}
+                  <p style={{ fontSize: '15px', fontWeight: 500, color: task.completed ? muted : text, margin: 0, textDecoration: task.completed ? 'line-through' : 'none' }}>{task.title}</p>
+                  {task.description && <p style={{ fontSize: '13px', color: muted, margin: '3px 0 0', lineHeight: 1.4 }}>{task.description}</p>}
                 </div>
                 {task.assignee && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                     <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: task.assignee.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 600, color: '#0a0f1e' }}>
                       {task.assignee.name.slice(0, 2).toUpperCase()}
                     </div>
-                    <span style={{ fontSize: '11px', color: muted }}>{task.assignee.name.split(' ')[0]}</span>
+                    <span style={{ fontSize: '13px', color: muted }}>{task.assignee.name.split(' ')[0]}</span>
                   </div>
                 )}
               </div>
@@ -133,17 +133,17 @@ export default function OnboardingPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 500, color: text, margin: 0 }}>Onboarding</h1>
-          <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>Two week intern onboarding checklist</p>
+          <p style={{ fontSize: '15px', color: muted, margin: '2px 0 0' }}>Two week intern onboarding checklist</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '80px', height: '6px', background: dark ? 'rgba(255,255,255,0.06)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
               <div style={{ width: `${progress}%`, height: '100%', background: progress === 100 ? '#22c55e' : '#1e6cb5', borderRadius: '3px', transition: 'width 0.3s' }} />
             </div>
-            <span style={{ fontSize: '12px', color: muted }}>{totalDone}/{tasks.length}</span>
+            <span style={{ fontSize: '14px', color: muted }}>{totalDone}/{tasks.length}</span>
           </div>
           {isManager && (
-            <button onClick={() => setShowAddTask(!showAddTask)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '8px 14px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+            <button onClick={() => setShowAddTask(!showAddTask)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', padding: '8px 14px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add task
             </button>
@@ -167,8 +167,8 @@ export default function OnboardingPage() {
             </select>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={addTask} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Add task</button>
-            <button onClick={() => setShowAddTask(false)} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+            <button onClick={addTask} style={{ fontSize: '15px', padding: '7px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Add task</button>
+            <button onClick={() => setShowAddTask(false)} style={{ fontSize: '15px', padding: '7px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
           </div>
         </div>
       )}

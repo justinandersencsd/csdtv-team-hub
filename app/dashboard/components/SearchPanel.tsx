@@ -100,7 +100,7 @@ export default function SearchPanel({ onClose }: Props) {
             onKeyDown={e => e.key === 'Escape' && onClose()}
           />
           {loading && <div style={{ width: '14px', height: '14px', border: `2px solid ${border}`, borderTopColor: '#5ba3e0', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />}
-          <button onClick={onClose} style={{ background: 'none', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontSize: '11px', padding: '3px 8px', borderRadius: '4px', fontFamily: 'inherit' }}>Esc</button>
+          <button onClick={onClose} style={{ background: 'none', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontSize: '13px', padding: '3px 8px', borderRadius: '4px', fontFamily: 'inherit' }}>Esc</button>
         </div>
 
         {results.length > 0 && (
@@ -117,8 +117,8 @@ export default function SearchPanel({ onClose }: Props) {
                   {typeIcon(result.type)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{result.title}</p>
-                  {result.subtitle && <p style={{ fontSize: '11px', color: muted, margin: '1px 0 0', textTransform: 'capitalize' }}>{result.subtitle}</p>}
+                  <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{result.title}</p>
+                  {result.subtitle && <p style={{ fontSize: '13px', color: muted, margin: '1px 0 0', textTransform: 'capitalize' }}>{result.subtitle}</p>}
                 </div>
                 <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '6px', background: `${typeColor(result.type)}18`, color: typeColor(result.type), flexShrink: 0 }}>{result.type}</span>
               </div>
@@ -127,12 +127,12 @@ export default function SearchPanel({ onClose }: Props) {
         )}
 
         {query.length >= 2 && results.length === 0 && !loading && (
-          <p style={{ color: muted, fontSize: '13px', textAlign: 'center', padding: '20px' }}>No results for "{query}"</p>
+          <p style={{ color: muted, fontSize: '15px', textAlign: 'center', padding: '20px' }}>No results for "{query}"</p>
         )}
 
         {query.length === 0 && (
           <div style={{ padding: '12px 16px' }}>
-            <p style={{ fontSize: '11px', color: muted, margin: 0 }}>Search productions, tasks, and knowledge base articles</p>
+            <p style={{ fontSize: '13px', color: muted, margin: 0 }}>Search productions, tasks, and knowledge base articles</p>
           </div>
         )}
       </div>

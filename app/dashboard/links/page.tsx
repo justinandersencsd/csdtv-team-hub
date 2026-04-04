@@ -96,7 +96,7 @@ export default function QuickLinksPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 500, color: text, margin: 0 }}>Quick links</h1>
-          <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>Useful tools and resources for the team</p>
+          <p style={{ fontSize: '15px', color: muted, margin: '2px 0 0' }}>Useful tools and resources for the team</p>
         </div>
         {isManager && (
           <button onClick={() => setShowNew(!showNew)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', padding: '10px 18px', borderRadius: '10px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, minHeight: '44px' }}>
@@ -133,14 +133,14 @@ export default function QuickLinksPage() {
       {/* Category filter pills */}
       {links.length > 0 && (
         <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          <button onClick={() => setCatFilter('all')} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '20px', border: `0.5px solid ${catFilter === 'all' ? '#1e6cb5' : border}`, background: catFilter === 'all' ? 'rgba(30,108,181,0.12)' : cardBg, color: catFilter === 'all' ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '36px' }}>
+          <button onClick={() => setCatFilter('all')} style={{ fontSize: '15px', padding: '7px 16px', borderRadius: '20px', border: `0.5px solid ${catFilter === 'all' ? '#1e6cb5' : border}`, background: catFilter === 'all' ? 'rgba(30,108,181,0.12)' : cardBg, color: catFilter === 'all' ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '36px' }}>
             All
           </button>
           {[...new Set(links.map(l => l.category))].map(cat => {
             const cs = CAT_STYLES[cat] || CAT_STYLES.General
             const active = catFilter === cat
             return (
-              <button key={cat} onClick={() => setCatFilter(active ? 'all' : cat)} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '20px', border: `0.5px solid ${active ? cs.color : border}`, background: active ? cs.bg : cardBg, color: active ? cs.color : muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '36px' }}>
+              <button key={cat} onClick={() => setCatFilter(active ? 'all' : cat)} style={{ fontSize: '15px', padding: '7px 16px', borderRadius: '20px', border: `0.5px solid ${active ? cs.color : border}`, background: active ? cs.bg : cardBg, color: active ? cs.color : muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '36px' }}>
                 {cs.emoji} {cat}
               </button>
             )
@@ -154,7 +154,7 @@ export default function QuickLinksPage() {
             {links.length === 0 ? 'No links yet' : 'No links in this category'}
           </p>
           {isManager && links.length === 0 && (
-            <p style={{ fontSize: '13px', color: muted, margin: '0 0 16px' }}>
+            <p style={{ fontSize: '15px', color: muted, margin: '0 0 16px' }}>
               Add links your team uses every day — Drive, Gmail, production tools
             </p>
           )}
@@ -165,10 +165,10 @@ export default function QuickLinksPage() {
           return (
             <div key={category} style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '20px', background: cs.bg, color: cs.color }}>
+                <span style={{ fontSize: '14px', fontWeight: 600, padding: '4px 12px', borderRadius: '20px', background: cs.bg, color: cs.color }}>
                   {cs.emoji} {category}
                 </span>
-                <span style={{ fontSize: '12px', color: muted }}>{catLinks.length} {catLinks.length === 1 ? 'link' : 'links'}</span>
+                <span style={{ fontSize: '14px', color: muted }}>{catLinks.length} {catLinks.length === 1 ? 'link' : 'links'}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
                 {catLinks.map(link => (
@@ -180,8 +180,8 @@ export default function QuickLinksPage() {
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <p style={{ fontSize: '14px', fontWeight: 600, color: text, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{link.title}</p>
-                          {link.description && <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px', lineHeight: 1.4 }}>{link.description}</p>}
-                          <p style={{ fontSize: '11px', color: muted, margin: 0, opacity: 0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                          {link.description && <p style={{ fontSize: '14px', color: muted, margin: '0 0 6px', lineHeight: 1.4 }}>{link.description}</p>}
+                          <p style={{ fontSize: '13px', color: muted, margin: 0, opacity: 0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                             {link.url.replace(/^https?:\/\//, '').split('/')[0]}
                           </p>
                         </div>

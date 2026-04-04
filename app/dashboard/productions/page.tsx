@@ -118,7 +118,7 @@ export default function ProductionsPage() {
   const uniqueStatuses = [...new Set(productions.map(p => p.status).filter(Boolean))]
 
   const filterBtn = (active: boolean) => ({
-    fontSize: '12px', padding: '5px 12px', borderRadius: '8px',
+    fontSize: '14px', padding: '5px 12px', borderRadius: '8px',
     border: `0.5px solid ${border}`,
     background: active ? '#1e6cb5' : inputBg,
     color: active ? '#fff' : muted,
@@ -141,11 +141,11 @@ export default function ProductionsPage() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 500, color: text, margin: 0 }}>Productions</h1>
-          <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>
+          <p style={{ fontSize: '15px', color: muted, margin: '2px 0 0' }}>
             {productions.length} total · {productions.filter(p => p.status?.toLowerCase() === 'in progress').length} in progress
           </p>
         </div>
-        <div style={{ fontSize: '11px', padding: '5px 12px', borderRadius: '6px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ fontSize: '13px', padding: '5px 12px', borderRadius: '6px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
           Synced from productions site
         </div>
@@ -160,7 +160,7 @@ export default function ProductionsPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by title, organizer, type, location..."
-          style={{ background: 'none', border: 'none', outline: 'none', fontSize: '13px', color: text, fontFamily: 'inherit', width: '100%' }}
+          style={{ background: 'none', border: 'none', outline: 'none', fontSize: '15px', color: text, fontFamily: 'inherit', width: '100%' }}
         />
         {search && (
           <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>×</button>
@@ -189,7 +189,7 @@ export default function ProductionsPage() {
 
       {/* Results count */}
       {(search || statusFilter !== 'all' || typeFilter !== 'all') && (
-        <p style={{ fontSize: '12px', color: muted, marginBottom: '12px' }}>
+        <p style={{ fontSize: '14px', color: muted, marginBottom: '12px' }}>
           Showing {filtered.length} of {productions.length} productions
         </p>
       )}
@@ -205,7 +205,7 @@ export default function ProductionsPage() {
           {(search || statusFilter !== 'all' || typeFilter !== 'all') && (
             <button
               onClick={() => { setSearch(''); setStatusFilter('all'); setTypeFilter('all') }}
-              style={{ fontSize: '12px', color: '#5ba3e0', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+              style={{ fontSize: '14px', color: '#5ba3e0', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
             >
               Clear filters
             </button>
@@ -230,7 +230,7 @@ export default function ProductionsPage() {
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
 
                     {/* Production number */}
-                    <div style={{ fontSize: '12px', color: muted, minWidth: '36px', fontWeight: 500, paddingTop: '2px', flexShrink: 0 }}>
+                    <div style={{ fontSize: '14px', color: muted, minWidth: '36px', fontWeight: 500, paddingTop: '2px', flexShrink: 0 }}>
                       #{prod.production_number}
                     </div>
 
@@ -250,25 +250,25 @@ export default function ProductionsPage() {
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
                         {prod.organizer_name && (
-                          <span style={{ fontSize: '12px', color: muted, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '14px', color: muted, display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                             {prod.organizer_name}
                           </span>
                         )}
                         {dateStr && (
-                          <span style={{ fontSize: '12px', color: muted, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '14px', color: muted, display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                             {dateStr}
                           </span>
                         )}
                         {prod.filming_location && (
-                          <span style={{ fontSize: '12px', color: muted, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '14px', color: muted, display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
                             {prod.filming_location}
                           </span>
                         )}
                         {prod.school_year && (
-                          <span style={{ fontSize: '12px', color: muted }}>{prod.school_year}</span>
+                          <span style={{ fontSize: '14px', color: muted }}>{prod.school_year}</span>
                         )}
                       </div>
                     </div>
@@ -306,12 +306,12 @@ export default function ProductionsPage() {
                           <div style={{ width: '60px', height: '4px', background: dark ? 'rgba(255,255,255,0.06)' : '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
                             <div style={{ width: `${progress.pct}%`, height: '100%', background: '#1e6cb5', borderRadius: '2px' }} />
                           </div>
-                          <span style={{ fontSize: '11px', color: muted, minWidth: '32px' }}>{progress.done}/{progress.total}</span>
+                          <span style={{ fontSize: '13px', color: muted, minWidth: '32px' }}>{progress.done}/{progress.total}</span>
                         </div>
                       )}
 
                       {/* Status badge */}
-                      <span style={{ fontSize: '11px', fontWeight: 500, padding: '3px 10px', borderRadius: '6px', background: statusStyle.bg, color: statusStyle.color, whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 500, padding: '3px 10px', borderRadius: '6px', background: statusStyle.bg, color: statusStyle.color, whiteSpace: 'nowrap' }}>
                         {prod.status || 'Pending'}
                       </span>
                     </div>
