@@ -1,6 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Placeholder from '@tiptap/extension-placeholder'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
 
@@ -26,10 +29,12 @@ const CAT_STYLES: Record<string, { bg: string; color: string }> = {
 }
 
 const STARTER_ARTICLES = [
-  { title: 'Livestream setup process', category: 'Process', content: 'Step by step guide for setting up a livestream...' },
-  { title: 'Board meeting workflow', category: 'Workflow', content: 'Complete board meeting production checklist and workflow...' },
-  { title: 'Equipment checkout policy', category: 'Policy', content: 'Rules and procedures for checking out equipment...' },
+  { title: 'Livestream setup process', category: 'Process', content: '<p>Step by step guide for setting up a livestream...</p>' },
+  { title: 'Board meeting workflow', category: 'Workflow', content: '<p>Complete board meeting production checklist and workflow...</p>' },
+  { title: 'Equipment checkout policy', category: 'Policy', content: '<p>Rules and procedures for checking out equipment...</p>' },
 ]
+
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
 
 export default function KnowledgePage() {
   const { theme } = useTheme()
@@ -44,7 +49,7 @@ export default function KnowledgePage() {
   const [selected, setSelected] = useState<Article | null>(null)
   const [editing, setEditing] = useState(false)
   const [showNew, setShowNew] = useState(false)
-  const [form, setForm] = useState({ title: '', content: '', category: 'Process' })
+  const [form, setForm] = useState({ title: '', category: 'Process' })
   const [showMobileDetail, setShowMobileDetail] = useState(false)
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
@@ -53,6 +58,15 @@ export default function KnowledgePage() {
   const cardBg  = dark ? '#0d1525' : '#ffffff'
   const inputBg = dark ? '#0a0f1e' : '#f8f9fc'
   const hoverBg = dark ? 'rgba(255,255,255,0.03)' : '#f8fafc'
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Placeholder.configure({ placeholder: 'Write your article here. Keep it practical and step-by-step.' }),
+    ],
+    content: '',
+    immediatelyRender: false,
+  })
 
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -69,24 +83,26 @@ export default function KnowledgePage() {
   useEffect(() => { loadData() }, [loadData])
 
   const saveArticle = async () => {
-    if (!form.title || !form.content || !currentUser) return
+    const htmlContent = editor?.getHTML() || ''
+    const isEmpty = htmlContent === '<p></p>' || htmlContent.trim() === ''
+    if (!form.title || isEmpty || !currentUser) return
     if (editing && selected) {
       const { data } = await supabase.from('knowledge_base')
-        .update({ title: form.title, content: form.content, category: form.category, updated_at: new Date().toISOString() })
+        .update({ title: form.title, content: htmlContent, category: form.category, updated_at: new Date().toISOString() })
         .eq('id', selected.id)
         .select('*')
         .single()
       if (data) { setArticles(prev => prev.map(a => a.id === data.id ? data : a)); setSelected(data) }
     } else {
       const { data } = await supabase.from('knowledge_base')
-        .insert({ title: form.title, content: form.content, category: form.category, created_by: currentUser.id })
+        .insert({ title: form.title, content: htmlContent, category: form.category, created_by: currentUser.id })
         .select('*')
         .single()
       if (data) { setArticles(prev => [data, ...prev]); setSelected(data); setShowMobileDetail(true) }
     }
     setEditing(false)
     setShowNew(false)
-    setForm({ title: '', content: '', category: 'Process' })
+    setForm({ title: '', category: 'Process' })
   }
 
   const openArticle = (article: Article) => {
@@ -96,16 +112,34 @@ export default function KnowledgePage() {
   }
 
   const filtered = articles.filter(a => {
-    const matchSearch = search === '' || a.title.toLowerCase().includes(search.toLowerCase()) || a.content.toLowerCase().includes(search.toLowerCase())
+    const matchSearch = search === '' || a.title.toLowerCase().includes(search.toLowerCase()) || stripHtml(a.content).toLowerCase().includes(search.toLowerCase())
     const matchCat = catFilter === 'all' || a.category === catFilter
     return matchSearch && matchCat
   })
 
   const inputStyle: React.CSSProperties = {
     background: inputBg, border: `0.5px solid ${border}`, borderRadius: '10px',
-    padding: '10px 14px', fontSize: '14px', color: text, fontFamily: 'inherit',
+    padding: '10px 14px', fontSize: '15px', color: text, fontFamily: 'inherit',
     outline: 'none', width: '100%', boxSizing: 'border-box', minHeight: '44px',
   }
+
+  const tbBtn = (label: string, action: () => void, active: boolean, extraStyle?: React.CSSProperties) => (
+    <button key={label} onClick={action} style={{ fontSize: '13px', padding: '4px 10px', borderRadius: '6px', border: `0.5px solid ${active ? '#1e6cb5' : border}`, background: active ? 'rgba(30,108,181,0.15)' : 'transparent', color: active ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '30px', ...extraStyle }}>
+      {label}
+    </button>
+  )
+
+  const Toolbar = () => (
+    <div style={{ display: 'flex', gap: '4px', padding: '8px 10px', borderBottom: `0.5px solid ${border}`, flexWrap: 'wrap', background: dark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
+      {tbBtn('B', () => editor?.chain().focus().toggleBold().run(), !!editor?.isActive('bold'), { fontWeight: 700 })}
+      {tbBtn('I', () => editor?.chain().focus().toggleItalic().run(), !!editor?.isActive('italic'), { fontStyle: 'italic' })}
+      {tbBtn('H2', () => editor?.chain().focus().toggleHeading({ level: 2 }).run(), !!editor?.isActive('heading', { level: 2 }))}
+      {tbBtn('H3', () => editor?.chain().focus().toggleHeading({ level: 3 }).run(), !!editor?.isActive('heading', { level: 3 }))}
+      {tbBtn('• List', () => editor?.chain().focus().toggleBulletList().run(), !!editor?.isActive('bulletList'))}
+      {tbBtn('1. List', () => editor?.chain().focus().toggleOrderedList().run(), !!editor?.isActive('orderedList'))}
+      {tbBtn('—', () => editor?.chain().focus().setHorizontalRule().run(), false)}
+    </div>
+  )
 
   const DetailPanel = () => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -116,7 +150,12 @@ export default function KnowledgePage() {
         </button>
         <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
           {selected && !editing && (
-            <button onClick={() => { setEditing(true); setForm({ title: selected.title, content: selected.content, category: selected.category }) }}
+            <button
+              onClick={() => {
+                setEditing(true)
+                setForm({ title: selected.title, category: selected.category })
+                editor?.commands.setContent(selected.content || '')
+              }}
               style={{ fontSize: '15px', padding: '8px 16px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>
               Edit
             </button>
@@ -124,15 +163,20 @@ export default function KnowledgePage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: (editing || showNew) ? '0' : '20px' }}>
         {(editing || showNew) ? (
           <div>
-            <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Article title" style={{ ...inputStyle, fontSize: '18px', fontWeight: 600, marginBottom: '10px' }} />
-            <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={{ ...inputStyle, marginBottom: '12px' }}>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="Write your article here. Keep it practical and step-by-step." style={{ ...inputStyle, minHeight: '280px', resize: 'vertical' as const, lineHeight: 1.7 }} />
-            <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+            <div style={{ padding: '16px 20px 0' }}>
+              <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Article title" style={{ ...inputStyle, fontSize: '18px', fontWeight: 600, marginBottom: '10px' }} />
+              <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={{ ...inputStyle, marginBottom: '12px' }}>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div style={{ margin: '0 20px', border: `0.5px solid ${border}`, borderRadius: '10px', overflow: 'hidden', background: inputBg }}>
+              <Toolbar />
+              <EditorContent editor={editor} className="tiptap-editor" />
+            </div>
+            <div style={{ display: 'flex', gap: '8px', margin: '14px 20px 20px' }}>
               <button onClick={saveArticle} style={{ fontSize: '14px', padding: '10px 20px', borderRadius: '10px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, minHeight: '44px' }}>Save article</button>
               <button onClick={() => { setEditing(false); setShowNew(false) }} style={{ fontSize: '14px', padding: '10px 20px', borderRadius: '10px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>Cancel</button>
             </div>
@@ -143,11 +187,11 @@ export default function KnowledgePage() {
               <span style={{ fontSize: '13px', padding: '3px 10px', borderRadius: '6px', background: (CAT_STYLES[selected.category] || CAT_STYLES.Other).bg, color: (CAT_STYLES[selected.category] || CAT_STYLES.Other).color, fontWeight: 500 }}>{selected.category}</span>
             </div>
             <h2 style={{ fontSize: '20px', fontWeight: 600, color: text, margin: '0 0 6px', lineHeight: 1.3 }}>{selected.title}</h2>
-            <p style={{ fontSize: '14px', color: muted, margin: '0 0 24px' }}>
+            <p style={{ fontSize: '14px', color: muted, margin: '0 0 28px' }}>
               {selected.author?.name && `By ${selected.author.name} · `}
               Updated {new Date(selected.updated_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
-            <div style={{ fontSize: '14px', color: text, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{selected.content}</div>
+            <div className="article-content" dangerouslySetInnerHTML={{ __html: selected.content }} />
           </div>
         ) : null}
       </div>
@@ -165,7 +209,14 @@ export default function KnowledgePage() {
           <h1 style={{ fontSize: '22px', fontWeight: 500, color: text, margin: 0 }}>Knowledge base</h1>
           <p style={{ fontSize: '15px', color: muted, margin: '2px 0 0' }}>{articles.length} articles</p>
         </div>
-        <button onClick={() => { setShowNew(true); setSelected(null); setForm({ title: '', content: '', category: 'Process' }); setShowMobileDetail(true) }}
+        <button
+          onClick={() => {
+            setShowNew(true)
+            setSelected(null)
+            setForm({ title: '', category: 'Process' })
+            editor?.commands.setContent('')
+            setShowMobileDetail(true)
+          }}
           style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', padding: '10px 18px', borderRadius: '10px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, minHeight: '44px' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           New article
@@ -174,7 +225,6 @@ export default function KnowledgePage() {
 
       <div className="kb-layout" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
 
-        {/* List side — hidden on mobile when detail is shown */}
         <div className={`kb-list ${showMobileDetail ? 'kb-list-hidden' : ''}`}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '10px 14px', marginBottom: '10px' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -202,7 +252,7 @@ export default function KnowledgePage() {
                   <p style={{ fontSize: '15px', color: muted, margin: '0 0 16px' }}>Start documenting your team's processes</p>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
                     {STARTER_ARTICLES.map(s => (
-                      <button key={s.title} onClick={() => { setForm({ title: s.title, content: s.content, category: s.category }); setShowNew(true); setShowMobileDetail(true) }} style={{ fontSize: '14px', padding: '8px 14px', borderRadius: '8px', background: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      <button key={s.title} onClick={() => { setForm({ title: s.title, category: s.category }); setShowNew(true); setShowMobileDetail(true); editor?.commands.setContent(s.content) }} style={{ fontSize: '14px', padding: '8px 14px', borderRadius: '8px', background: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit' }}>
                         + {s.title}
                       </button>
                     ))}
@@ -227,7 +277,7 @@ export default function KnowledgePage() {
                       <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '6px', background: cs.bg, color: cs.color, flexShrink: 0, fontWeight: 500 }}>{article.category}</span>
                     </div>
                     <p style={{ fontSize: '14px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                      {article.content.slice(0, 90)}
+                      {stripHtml(article.content).slice(0, 90)}
                     </p>
                   </div>
                 )
@@ -236,7 +286,6 @@ export default function KnowledgePage() {
           )}
         </div>
 
-        {/* Detail side */}
         {(selected || showNew) && (
           <div className={`kb-detail ${showMobileDetail ? 'kb-detail-visible' : 'kb-detail-desktop'}`} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden', minHeight: '400px' }}>
             <DetailPanel />
@@ -258,6 +307,66 @@ export default function KnowledgePage() {
           .kb-detail-visible { display: block !important; }
           .mobile-back-btn { display: flex !important; }
         }
+        .tiptap-editor .ProseMirror {
+          min-height: 280px;
+          padding: 14px 16px;
+          font-size: 15px;
+          color: ${text};
+          font-family: inherit;
+          line-height: 1.7;
+          outline: none;
+        }
+        .tiptap-editor .ProseMirror > * + * { margin-top: 10px; }
+        .tiptap-editor .ProseMirror h2 { font-size: 17px; font-weight: 600; color: ${text}; margin: 20px 0 6px; }
+        .tiptap-editor .ProseMirror h3 { font-size: 15px; font-weight: 600; color: ${text}; margin: 16px 0 4px; }
+        .tiptap-editor .ProseMirror ul { list-style: disc; padding-left: 22px; }
+        .tiptap-editor .ProseMirror ol { list-style: decimal; padding-left: 22px; }
+        .tiptap-editor .ProseMirror li { margin-bottom: 5px; }
+        .tiptap-editor .ProseMirror hr { border: none; border-top: 0.5px solid ${border}; margin: 16px 0; }
+        .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          color: ${muted};
+          pointer-events: none;
+          float: left;
+          height: 0;
+        }
+        .article-content h2 {
+          font-size: 17px; font-weight: 600; color: ${text};
+          margin: 32px 0 12px; padding-bottom: 8px;
+          border-bottom: 0.5px solid ${border};
+        }
+        .article-content h2:first-child { margin-top: 0; }
+        .article-content h3 { font-size: 15px; font-weight: 600; color: ${text}; margin: 22px 0 8px; }
+        .article-content p { font-size: 15px; color: ${text}; line-height: 1.8; margin: 0 0 14px; }
+        .article-content ul { list-style: none; padding: 0; margin: 0 0 18px; }
+        .article-content ul li {
+          font-size: 15px; color: ${text}; line-height: 1.7;
+          margin-bottom: 8px; padding-left: 20px; position: relative;
+        }
+        .article-content ul li::before {
+          content: '·'; position: absolute; left: 5px;
+          color: ${muted}; font-size: 20px; line-height: 1.3;
+        }
+        .article-content ol { list-style: none; padding: 0; margin: 0 0 18px; counter-reset: ol-counter; }
+        .article-content ol li {
+          font-size: 15px; color: ${text}; line-height: 1.7;
+          margin-bottom: 10px; padding-left: 32px; position: relative;
+          counter-increment: ol-counter;
+        }
+        .article-content ol li::before {
+          content: counter(ol-counter);
+          position: absolute; left: 0;
+          width: 22px; height: 22px;
+          background: rgba(30,108,181,0.12);
+          color: #5ba3e0;
+          border-radius: 50%;
+          font-size: 12px; font-weight: 600;
+          display: flex; align-items: center; justify-content: center;
+          top: 2px;
+        }
+        .article-content strong { font-weight: 600; color: ${text}; }
+        .article-content em { font-style: italic; color: ${muted}; }
+        .article-content hr { border: none; border-top: 0.5px solid ${border}; margin: 28px 0; }
       `}</style>
     </div>
   )
