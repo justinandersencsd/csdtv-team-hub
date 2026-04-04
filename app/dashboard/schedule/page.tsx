@@ -147,6 +147,10 @@ export default function SchedulePage() {
   const [myOverride, setMyOverride]     = useState<DaySchedule & { notes: string }>({ ...EMPTY_DEFAULT, notes: '' })
   const [overrideWeek, setOverrideWeek] = useState('') // which week_start to edit
   const [hoveredProd, setHoveredProd]   = useState<string | null>(null)
+  const [editingCell, setEditingCell]   = useState<{ dateStr: string; value: string } | null>(null)
+  const [showMassFill, setShowMassFill] = useState(false)
+  const [massFillValue, setMassFillValue] = useState('')
+  const [massFilling, setMassFilling]   = useState(false)
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
@@ -332,6 +336,75 @@ export default function SchedulePage() {
     setEditingOverride(false)
   }, [currentUser, overrides, myOverride, overrideWeek, supabase])
 
+  // ─── Save a single day override ──────────────────────────────────────────
+  const saveDay = useCallback(async (date: Date, value: string) => {
+    if (!currentUser) return
+    const dow = date.getDay()
+    if (dow === 0 || dow === 6) return
+    const dayKey = getDayOfWeekKey(dow) as keyof DaySchedule
+    const weekStart = getMondayStr(date)
+    const existing = overrides.find(o => o.user_id === currentUser.id && o.week_start === weekStart)
+    const trimmed = value.trim()
+    if (existing) {
+      await supabase.from('schedule_overrides').update({ [dayKey]: trimmed || null }).eq('id', existing.id)
+      setOverrides(prev => prev.map(o => o.id === existing.id ? { ...o, [dayKey]: trimmed || null } : o))
+    } else {
+      const insertRow: Record<string, string | null> = {
+        user_id: currentUser.id, week_start: weekStart,
+        monday: null, tuesday: null, wednesday: null, thursday: null, friday: null, notes: null,
+        [dayKey]: trimmed || null,
+      }
+      const { data } = await supabase.from('schedule_overrides').insert(insertRow).select().single()
+      if (data) setOverrides(prev => [...prev, data])
+    }
+    setEditingCell(null)
+  }, [currentUser, overrides, supabase])
+
+  // ─── Mass fill all weekdays in the viewed month ───────────────────────────
+  const runMassFill = useCallback(async () => {
+    if (!currentUser || !massFillValue.trim()) return
+    setMassFilling(true)
+    const val = massFillValue.trim()
+
+    // Collect unique week_starts for all weekdays in the viewed month
+    const weekMap = new Map<string, Set<keyof DaySchedule>>()
+    calDays.forEach(d => {
+      if (!isCurrentMonth(d)) return
+      const dow = d.getDay()
+      if (dow === 0 || dow === 6) return
+      const ws = getMondayStr(d)
+      if (!weekMap.has(ws)) weekMap.set(ws, new Set())
+      weekMap.get(ws)!.add(getDayOfWeekKey(dow) as keyof DaySchedule)
+    })
+
+    for (const [weekStart, days] of weekMap) {
+      const existing = overrides.find(o => o.user_id === currentUser.id && o.week_start === weekStart)
+      const updates: Record<string, string> = {}
+      days.forEach(d => { updates[d] = val })
+
+      if (existing) {
+        await supabase.from('schedule_overrides').update(updates).eq('id', existing.id)
+        setOverrides(prev => prev.map(o => o.id === existing.id ? { ...o, ...updates } : o))
+      } else {
+        const insertRow = {
+          user_id: currentUser.id, week_start: weekStart,
+          monday: null as string | null, tuesday: null as string | null,
+          wednesday: null as string | null, thursday: null as string | null,
+          friday: null as string | null, notes: null as string | null,
+          ...updates,
+        }
+        const { data } = await supabase.from('schedule_overrides').insert(insertRow).select().single()
+        if (data) setOverrides(prev => {
+          const without = prev.filter(o => !(o.user_id === currentUser.id && o.week_start === weekStart))
+          return [...without, data]
+        })
+      }
+    }
+    setShowMassFill(false)
+    setMassFillValue('')
+    setMassFilling(false)
+  }, [currentUser, massFillValue, calDays, overrides, supabase, viewYear, viewMonth])
+
   // ─── Styles ───────────────────────────────────────────────────────────────
   const inputStyle: React.CSSProperties = {
     background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px',
@@ -403,6 +476,34 @@ export default function SchedulePage() {
         </div>
       )}
 
+      {/* ── Mass fill bar ── */}
+      {viewingOwnSchedule && (
+        <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {showMassFill ? (
+            <>
+              <span style={{ fontSize: '13px', color: muted }}>Fill all weekdays in {firstOfMonth.toLocaleDateString('en-US', { month: 'long' })} with:</span>
+              <input
+                autoFocus
+                value={massFillValue}
+                onChange={e => setMassFillValue(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') runMassFill(); if (e.key === 'Escape') setShowMassFill(false) }}
+                placeholder="e.g. 9am-5pm"
+                style={{ background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '7px 12px', fontSize: '13px', color: text, fontFamily: 'inherit', outline: 'none', width: '140px' }}
+              />
+              <button onClick={runMassFill} disabled={massFilling || !massFillValue.trim()} style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: massFilling ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+                {massFilling ? 'Applying…' : 'Apply'}
+              </button>
+              <button onClick={() => { setShowMassFill(false); setMassFillValue('') }} style={{ fontSize: '13px', padding: '7px 12px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+            </>
+          ) : (
+            <button onClick={() => setShowMassFill(true)} style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '8px', background: cardBg, border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Fill all weekdays
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Calendar ── */}
       <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
         {/* Day-of-week headers */}
@@ -440,8 +541,15 @@ export default function SchedulePage() {
                   opacity: inMonth ? 1 : 0.3,
                 }}
               >
-                {/* Day number */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                {/* Day number + hours row */}
+                <div
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', cursor: (!isWeekend && inMonth && viewingOwnSchedule) ? 'text' : 'default' }}
+                  onClick={e => {
+                    if (isWeekend || !inMonth || !viewingOwnSchedule) return
+                    const ds = toLocalDateStr(day)
+                    setEditingCell({ dateStr: ds, value: hours || '' })
+                  }}
+                >
                   <span style={{
                     fontSize: '13px', fontWeight: todayCell ? 700 : 400,
                     color: todayCell ? '#fff' : isWeekend ? (dark ? 'rgba(136,153,187,0.5)' : 'rgba(107,114,128,0.5)') : text,
@@ -452,12 +560,31 @@ export default function SchedulePage() {
                   }}>
                     {day.getDate()}
                   </span>
-                  {/* Hours badge */}
-                  {hours && inMonth && (
-                    <span style={{ fontSize: '10px', fontWeight: 500, color: '#5ba3e0', background: dark ? 'rgba(30,108,181,0.18)' : 'rgba(30,108,181,0.1)', borderRadius: '4px', padding: '1px 5px', whiteSpace: 'nowrap' as const }}>
+                  {/* Inline edit input OR hours badge */}
+                  {!isWeekend && inMonth && editingCell?.dateStr === toLocalDateStr(day) ? (
+                    <input
+                      autoFocus
+                      value={editingCell.value}
+                      onChange={e => setEditingCell(p => p ? { ...p, value: e.target.value } : p)}
+                      onKeyDown={e => {
+                        e.stopPropagation()
+                        if (e.key === 'Enter') saveDay(day, editingCell.value)
+                        if (e.key === 'Escape') setEditingCell(null)
+                      }}
+                      onBlur={() => saveDay(day, editingCell.value)}
+                      onClick={e => e.stopPropagation()}
+                      placeholder="9am-5pm"
+                      style={{ fontSize: '10px', width: '68px', background: inputBg, border: `0.5px solid #1e6cb5`, borderRadius: '4px', padding: '1px 4px', color: text, fontFamily: 'inherit', outline: 'none' }}
+                    />
+                  ) : hours && inMonth ? (
+                    <span
+                      title="Click to edit"
+                      style={{ fontSize: '10px', fontWeight: 500, color: '#5ba3e0', background: dark ? 'rgba(30,108,181,0.18)' : 'rgba(30,108,181,0.1)', borderRadius: '4px', padding: '1px 5px', whiteSpace: 'nowrap' as const, cursor: (!isWeekend && inMonth && viewingOwnSchedule) ? 'text' : 'default' }}>
                       {hours.replace(/\s/g, '')}
                     </span>
-                  )}
+                  ) : !isWeekend && inMonth && viewingOwnSchedule ? (
+                    <span style={{ fontSize: '10px', color: dark ? 'rgba(136,153,187,0.3)' : 'rgba(107,114,128,0.25)', padding: '1px 5px' }}>+</span>
+                  ) : null}
                 </div>
 
                 {/* Production chips */}
