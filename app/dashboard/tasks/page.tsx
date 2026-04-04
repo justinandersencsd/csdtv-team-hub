@@ -114,7 +114,6 @@ export default function TasksPage() {
     await supabase.from('tasks').update(updates).eq('id', id)
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
     setSelectedTask(prev => prev?.id === id ? { ...prev, ...updates } : prev)
-    // Send email if assignee changed
     if (updates.assigned_to && updates.assigned_to !== selectedTask?.assigned_to) {
       const task = tasks.find(t => t.id === id)
       if (task) sendAssignEmail(updates.assigned_to, task.title)
@@ -130,19 +129,25 @@ export default function TasksPage() {
 
   const createTask = useCallback(async () => {
     if (!newTask.title || !currentUser) return
+    // Insert without FK join to avoid the productions relationship 400 error
     const { data } = await supabase.from('tasks').insert({
       title: newTask.title, description: newTask.description || null,
       priority: newTask.priority, assigned_to: newTask.assigned_to || null,
       due_date: newTask.due_date || null, production_id: newTask.production_id || null,
       needs_equipment: newTask.needs_equipment, status: 'pending', created_by: currentUser.id,
-    }).select('*, productions(id,title,production_number,request_type_label,start_datetime,status)').single()
+    }).select('*').single()
     if (data) {
-      setTasks(prev => [data, ...prev])
+      // Manually attach the production object from our already-loaded list
+      const linkedProd = newTask.production_id
+        ? allProductions.find(p => p.id === newTask.production_id) || null
+        : null
+      const taskWithProd: Task = { ...data, productions: linkedProd }
+      setTasks(prev => [taskWithProd, ...prev])
       if (newTask.assigned_to) sendAssignEmail(newTask.assigned_to, newTask.title)
       setNewTask({ title: '', description: '', priority: 'normal', assigned_to: '', due_date: '', production_id: '', needs_equipment: false })
       setShowNewTask(false)
     }
-  }, [newTask, currentUser, supabase, sendAssignEmail])
+  }, [newTask, currentUser, supabase, sendAssignEmail, allProductions])
 
   const cycleStatus = useCallback(async (task: Task, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -235,29 +240,43 @@ export default function TasksPage() {
     padding: '9px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
   }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading tasks...</p></div>
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+      <p style={{ color: muted }}>Loading tasks...</p>
+    </div>
+  )
 
   const openCount = filtered.filter(t => !completing.has(t.id)).length
 
   return (
     <div style={{ maxWidth: '1600px', margin: '0 auto', display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
+
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
           <div>
             <h1 style={{ fontSize: '26px', fontWeight: 700, color: text, margin: 0 }}>Tasks</h1>
             <p style={{ fontSize: '14px', color: muted, margin: '2px 0 0' }}>{openCount} open · {completedTasks.length} completed</p>
           </div>
-          <button onClick={() => setShowNewTask(!showNewTask)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', padding: '10px 18px', borderRadius: '10px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <button
+            onClick={() => setShowNewTask(!showNewTask)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', padding: '10px 18px', borderRadius: '10px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
             New task
           </button>
         </div>
 
-        {/* Tabs: Open / Completed */}
+        {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: `0.5px solid ${border}`, marginBottom: '16px' }}>
           {([['open', `Open (${openCount})`], ['completed', `Completed (${completedTasks.length})`]] as const).map(([tab, label]) => (
-            <button key={tab} onClick={() => setActiveTab(tab)} style={{ fontSize: '14px', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', color: activeTab === tab ? '#5ba3e0' : muted, borderBottom: activeTab === tab ? '2px solid #1e6cb5' : '2px solid transparent', fontWeight: activeTab === tab ? 500 : 400 }}>
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{ fontSize: '14px', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', color: activeTab === tab ? '#5ba3e0' : muted, borderBottom: activeTab === tab ? '2px solid #1e6cb5' : '2px solid transparent', fontWeight: activeTab === tab ? 500 : 400 }}
+            >
               {label}
             </button>
           ))}
@@ -311,6 +330,7 @@ export default function TasksPage() {
               <button style={filterBtn(groupBy === 'person')} onClick={() => setGroupBy('person')}>Person</button>
               <button style={filterBtn(groupBy === 'status')} onClick={() => setGroupBy('status')}>Status</button>
             </div>
+
             {filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 20px' }}>
                 <p style={{ color: muted, fontSize: '15px' }}>No tasks match your filters</p>
@@ -334,31 +354,55 @@ export default function TasksPage() {
                     const priorityStyle = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES['normal']
                     const assignee = getMember(task.assigned_to)
                     return (
-                      <div key={task.id} onClick={() => !isCompleting && openTask(task)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < groupTasks.length - 1 ? `0.5px solid ${border}` : 'none', background: isSelected ? (dark ? 'rgba(30,108,181,0.12)' : 'rgba(30,108,181,0.06)') : isCompleting ? 'rgba(34,197,94,0.06)' : 'transparent', cursor: isCompleting ? 'default' : 'pointer', transition: 'background 0.15s', opacity: isCompleting ? 0.7 : 1, borderLeft: isSelected ? '3px solid #1e6cb5' : '3px solid transparent' }}
+                      <div
+                        key={task.id}
+                        onClick={() => !isCompleting && openTask(task)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < groupTasks.length - 1 ? `0.5px solid ${border}` : 'none', background: isSelected ? (dark ? 'rgba(30,108,181,0.12)' : 'rgba(30,108,181,0.06)') : isCompleting ? 'rgba(34,197,94,0.06)' : 'transparent', cursor: isCompleting ? 'default' : 'pointer', transition: 'background 0.15s', opacity: isCompleting ? 0.7 : 1, borderLeft: isSelected ? '3px solid #1e6cb5' : '3px solid transparent' }}
                         onMouseEnter={e => { if (!isSelected && !isCompleting) (e.currentTarget as HTMLDivElement).style.background = hoverBg }}
                         onMouseLeave={e => { if (!isSelected && !isCompleting) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
                       >
-                        <button onClick={e => cycleStatus(task, e)} style={{ width: '20px', height: '20px', borderRadius: '5px', flexShrink: 0, border: `1.5px solid ${isCompleting || task.status === 'complete' ? '#22c55e' : task.status === 'in progress' ? '#f59e0b' : border}`, background: isCompleting || task.status === 'complete' ? '#22c55e' : task.status === 'in progress' ? 'rgba(245,158,11,0.15)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
-                          {(isCompleting || task.status === 'complete') && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                        <button
+                          onClick={e => cycleStatus(task, e)}
+                          style={{ width: '20px', height: '20px', borderRadius: '5px', flexShrink: 0, border: `1.5px solid ${isCompleting || task.status === 'complete' ? '#22c55e' : task.status === 'in progress' ? '#f59e0b' : border}`, background: isCompleting || task.status === 'complete' ? '#22c55e' : task.status === 'in progress' ? 'rgba(245,158,11,0.15)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                        >
+                          {(isCompleting || task.status === 'complete') && (
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          )}
                         </button>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: '15px', color: isCompleting ? muted : text, margin: 0, fontWeight: 500, textDecoration: isCompleting ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                             {task.needs_equipment && <span style={{ marginRight: '5px' }}>📦</span>}
                             {task.title}
                           </p>
-                          {task.productions?.title && <p style={{ fontSize: '13px', color: '#5ba3e0', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>🎬 #{task.productions.production_number} {task.productions.title}</p>}
+                          {task.productions?.title && (
+                            <p style={{ fontSize: '13px', color: '#5ba3e0', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                              🎬 #{task.productions.production_number} {task.productions.title}
+                            </p>
+                          )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                          {isCompleting ? <span style={{ fontSize: '13px', color: '#22c55e', fontWeight: 500 }}>Done ✓</span> : (
+                          {isCompleting ? (
+                            <span style={{ fontSize: '13px', color: '#22c55e', fontWeight: 500 }}>Done ✓</span>
+                          ) : (
                             <>
-                              {task.priority !== 'normal' && <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: priorityStyle.bg, color: priorityStyle.color, whiteSpace: 'nowrap' as const }}>{task.priority === 'day of' ? 'Day of' : task.priority}</span>}
+                              {task.priority !== 'normal' && (
+                                <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: priorityStyle.bg, color: priorityStyle.color, whiteSpace: 'nowrap' as const }}>
+                                  {task.priority === 'day of' ? 'Day of' : task.priority}
+                                </span>
+                              )}
                               <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: statusStyle.bg, color: statusStyle.color }}>{task.status}</span>
                               {dateInfo && <span style={{ fontSize: '13px', color: dateInfo.color, fontWeight: 500, minWidth: '52px', textAlign: 'right' as const }}>{dateInfo.label}</span>}
                             </>
                           )}
                           {assignee ? (
-                            <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: assignee.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>{assignee.name.slice(0, 2).toUpperCase()}</div>
-                          ) : <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: `1.5px dashed ${border}`, flexShrink: 0 }} />}
+                            <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: assignee.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>
+                              {assignee.name.slice(0, 2).toUpperCase()}
+                            </div>
+                          ) : (
+                            <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: `1.5px dashed ${border}`, flexShrink: 0 }} />
+                          )}
                         </div>
                       </div>
                     )
@@ -383,15 +427,29 @@ export default function TasksPage() {
                   return (
                     <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < completedTasks.length - 1 ? `0.5px solid ${border}` : 'none' }}>
                       <div style={{ width: '20px', height: '20px', borderRadius: '5px', flexShrink: 0, border: '1.5px solid #22c55e', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: '15px', color: muted, margin: 0, textDecoration: 'line-through', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.title}</p>
-                        {task.productions?.title && <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0', opacity: 0.7 }}>#{task.productions.production_number} {task.productions.title}</p>}
+                        {task.productions?.title && (
+                          <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0', opacity: 0.7 }}>
+                            #{task.productions.production_number} {task.productions.title}
+                          </p>
+                        )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                        {task.completed_at && <span style={{ fontSize: '13px', color: muted }}>{new Date(task.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
-                        {assignee && <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: assignee.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#0a0f1e' }}>{assignee.name.slice(0, 2).toUpperCase()}</div>}
+                        {task.completed_at && (
+                          <span style={{ fontSize: '13px', color: muted }}>
+                            {new Date(task.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
+                        {assignee && (
+                          <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: assignee.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: '#0a0f1e' }}>
+                            {assignee.name.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
                         <button onClick={() => reopenTask(task)} style={{ fontSize: '13px', padding: '4px 12px', borderRadius: '6px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit' }}>Reopen</button>
                       </div>
                     </div>
@@ -401,7 +459,6 @@ export default function TasksPage() {
             )}
           </div>
         )}
-      </div>
 
       {/* Detail panel */}
       {selectedTask && (
@@ -418,12 +475,24 @@ export default function TasksPage() {
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: '12px', color: '#5ba3e0', fontWeight: 700, margin: '0 0 4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>🎬 Linked production</p>
-                    <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>#{selectedTask.productions.production_number} — {selectedTask.productions.title}</p>
-                    {selectedTask.productions.request_type_label && <p style={{ fontSize: '13px', color: muted, margin: '0 0 6px' }}>{selectedTask.productions.request_type_label}</p>}
-                    {selectedTask.productions.start_datetime && <p style={{ fontSize: '13px', color: muted, margin: '0 0 4px' }}>📅 {formatEventDate(selectedTask.productions.start_datetime)}</p>}
+                    <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      #{selectedTask.productions.production_number} — {selectedTask.productions.title}
+                    </p>
+                    {selectedTask.productions.request_type_label && (
+                      <p style={{ fontSize: '13px', color: muted, margin: '0 0 6px' }}>{selectedTask.productions.request_type_label}</p>
+                    )}
+                    {selectedTask.productions.start_datetime && (
+                      <p style={{ fontSize: '13px', color: muted, margin: '0 0 4px' }}>📅 {formatEventDate(selectedTask.productions.start_datetime)}</p>
+                    )}
                     {(() => { const c = eventCountdown(selectedTask.productions.start_datetime); return c ? <p style={{ fontSize: '13px', fontWeight: 600, color: c.color, margin: 0 }}>⏱ {c.label}</p> : null })()}
                   </div>
-                  <Link href={`/dashboard/productions/${selectedTask.productions.id}`} style={{ fontSize: '13px', color: '#5ba3e0', textDecoration: 'none', padding: '5px 12px', borderRadius: '6px', border: '0.5px solid rgba(30,108,181,0.3)', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>Open →</Link>
+                  {/* Fixed: use production_number instead of UUID */}
+                  <Link
+                    href={`/dashboard/productions/${selectedTask.productions.production_number}`}
+                    style={{ fontSize: '13px', color: '#5ba3e0', textDecoration: 'none', padding: '5px 12px', borderRadius: '6px', border: '0.5px solid rgba(30,108,181,0.3)', whiteSpace: 'nowrap' as const, flexShrink: 0 }}
+                  >
+                    Open →
+                  </Link>
                 </div>
               </div>
             )}
@@ -468,10 +537,14 @@ export default function TasksPage() {
               </div>
             )}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px', padding: '11px 13px', background: selectedTask.needs_equipment ? 'rgba(249,115,22,0.1)' : inputBg, borderRadius: '8px', border: `0.5px solid ${selectedTask.needs_equipment ? 'rgba(249,115,22,0.3)' : border}`, cursor: 'pointer' }}
-              onClick={() => updateTask(selectedTask.id, { needs_equipment: !selectedTask.needs_equipment })}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px', padding: '11px 13px', background: selectedTask.needs_equipment ? 'rgba(249,115,22,0.1)' : inputBg, borderRadius: '8px', border: `0.5px solid ${selectedTask.needs_equipment ? 'rgba(249,115,22,0.3)' : border}`, cursor: 'pointer' }}
+              onClick={() => updateTask(selectedTask.id, { needs_equipment: !selectedTask.needs_equipment })}
+            >
               <input type="checkbox" checked={selectedTask.needs_equipment} onChange={() => {}} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-              <span style={{ fontSize: '14px', color: selectedTask.needs_equipment ? '#f97316' : muted, fontWeight: selectedTask.needs_equipment ? 600 : 400 }}>📦 Needs equipment pulled</span>
+              <span style={{ fontSize: '14px', color: selectedTask.needs_equipment ? '#f97316' : muted, fontWeight: selectedTask.needs_equipment ? 600 : 400 }}>
+                📦 Needs equipment pulled
+              </span>
             </div>
 
             {selectedTask.description && (
@@ -483,14 +556,22 @@ export default function TasksPage() {
 
             <div>
               <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Notes</p>
-              <textarea value={panelNotes} onChange={e => setPanelNotes(e.target.value)} placeholder="Add internal notes..." style={{ ...inputStyle, minHeight: '90px', resize: 'vertical' as const, lineHeight: 1.5, marginBottom: '8px' }} />
-              <button onClick={saveNotes} disabled={savingNotes} style={{ fontSize: '14px', padding: '8px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: savingNotes ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+              <textarea
+                value={panelNotes}
+                onChange={e => setPanelNotes(e.target.value)}
+                placeholder="Add internal notes..."
+                style={{ ...inputStyle, minHeight: '90px', resize: 'vertical' as const, lineHeight: 1.5, marginBottom: '8px' }}
+              />
+              <button
+                onClick={saveNotes}
+                disabled={savingNotes}
+                style={{ fontSize: '14px', padding: '8px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: savingNotes ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: 500 }}
+              >
                 {savingNotes ? 'Saving...' : 'Save notes'}
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
   )
 }
