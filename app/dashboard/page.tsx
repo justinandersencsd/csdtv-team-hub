@@ -52,12 +52,13 @@ export default function DashboardPage() {
     const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999)
 
     const [tasksRes, prodMembersRes, teamRes, allTasksRes, countRes, todayProdsRes] = await Promise.all([
-      supabase.from('tasks').select('*, productions(title)').eq('assigned_to', user.id).neq('status', 'complete').order('due_date', { ascending: true, nullsFirst: false }).limit(8),
+      supabase.from('tasks').select('*, productions(title)').eq('assigned_to', user.id).neq('status', 'complete').order('due_date', { ascending: true, nullsFirst: false }).limit(12),
       supabase.from('production_members').select('production_id').eq('user_id', user.id),
       supabase.from('team').select('*').eq('active', true),
-      supabase.from('tasks').select('*, productions(title)').neq('status', 'complete').order('due_date', { ascending: true, nullsFirst: false }).limit(8),
+      supabase.from('tasks').select('*, productions(title)').neq('status', 'complete').order('due_date', { ascending: true, nullsFirst: false }).limit(12),
       supabase.from('productions').select('id', { count: 'exact', head: true }),
-supabase.from('productions').select('id, title, production_number, request_type_label, type, status, start_datetime').gte('start_datetime', todayStart.toISOString()).lte('start_datetime', todayEnd.toISOString()).limit(5),    ])
+      supabase.from('productions').select('id, title, production_number, request_type_label, type, status, start_datetime').gte('start_datetime', todayStart.toISOString()).lte('start_datetime', todayEnd.toISOString()).limit(5),
+    ])
 
     setMyTasks(tasksRes.data || [])
     setTeamMembers(teamRes.data || [])
@@ -67,7 +68,7 @@ supabase.from('productions').select('id, title, production_number, request_type_
 
     if (prodMembersRes.data && prodMembersRes.data.length > 0) {
       const ids = prodMembersRes.data.map((p: { production_id: string }) => p.production_id)
-      const { data: prods } = await supabase.from('productions').select('*, checklist_items(completed)').in('id', ids).neq('status', 'Complete').order('start_datetime', { ascending: true, nullsFirst: false }).limit(5)
+      const { data: prods } = await supabase.from('productions').select('*, checklist_items(completed)').in('id', ids).neq('status', 'Complete').order('start_datetime', { ascending: true, nullsFirst: false }).limit(8)
       setMyProductions(prods || [])
     }
     setLoading(false)
@@ -90,7 +91,6 @@ supabase.from('productions').select('id, title, production_number, request_type_
     if (todayProductions.length > 0) parts.push(`${todayProductions.length} production${todayProductions.length > 1 ? 's' : ''} happening today`)
     if (overdueTasks.length > 0) parts.push(`${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''} need attention`)
     else if (todayTasks.length > 0) parts.push(`${todayTasks.length} task${todayTasks.length > 1 ? 's' : ''} due today`)
-    if (myTasks.filter(t => t.priority === 'day of').length > 0) parts.push('day-of tasks assigned')
     if (parts.length === 0 && myTasks.length === 0) return "You're all caught up — no open tasks."
     if (parts.length === 0) return `You have ${myTasks.length} open task${myTasks.length > 1 ? 's' : ''}.`
     return parts.join(' · ') + '.'
@@ -122,47 +122,48 @@ supabase.from('productions').select('id, title, production_number, request_type_
   const statusBadge = (status: string) => {
     const s = status?.toLowerCase()
     const st = { 'in progress': { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b' }, 'pending': { bg: 'rgba(100,116,139,0.15)', color: '#94a3b8' }, 'complete': { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' } }[s] || { bg: 'rgba(100,116,139,0.15)', color: '#94a3b8' }
-    return <span style={{ fontSize: '11px', fontWeight: 500, padding: '3px 9px', borderRadius: '20px', background: st.bg, color: st.color, whiteSpace: 'nowrap' as const }}>{status}</span>
+    return <span style={{ fontSize: '12px', fontWeight: 500, padding: '4px 10px', borderRadius: '20px', background: st.bg, color: st.color, whiteSpace: 'nowrap' as const }}>{status}</span>
   }
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading...</p></div>
 
   const QUICK_ACTIONS = [
-    { href: '/dashboard/tasks', label: 'New task', desc: 'Create a task', color: '#3b82f6', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> },
-    { href: '/dashboard/productions', label: 'Productions', desc: `${totalProductions} total`, color: '#f59e0b', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg> },
-    { href: '/dashboard/schedule', label: 'My schedule', desc: 'Set your hours', color: '#22c55e', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
-    { href: '/dashboard/knowledge', label: 'Knowledge base', desc: 'Guides & docs', color: '#a78bfa', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg> },
+    { href: '/dashboard/tasks', label: 'New task', desc: 'Create a task', color: '#3b82f6', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> },
+    { href: '/dashboard/productions', label: 'Productions', desc: `${totalProductions} total`, color: '#f59e0b', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg> },
+    { href: '/dashboard/schedule', label: 'My schedule', desc: 'Set your hours', color: '#22c55e', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
+    { href: '/dashboard/knowledge', label: 'Knowledge base', desc: 'Guides & docs', color: '#a78bfa', icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg> },
   ]
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
 
-      <div style={{ marginBottom: '16px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 600, color: text, margin: '0 0 2px' }}>{greeting()}, {currentUser?.name?.split(' ')[0]}</h1>
-        <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px' }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-        {myTasks.length >= 0 && (
-          <p style={{ fontSize: '13px', color: urgentCount > 0 || overdueCount > 0 ? '#f59e0b' : muted, margin: 0, lineHeight: 1.5 }}>
-            {getMorningBriefing()}
-          </p>
-        )}
+      {/* Header */}
+      <div style={{ marginBottom: '20px' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: 700, color: text, margin: '0 0 4px' }}>{greeting()}, {currentUser?.name?.split(' ')[0]}</h1>
+        <p style={{ fontSize: '14px', color: muted, margin: '0 0 6px' }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+        <p style={{ fontSize: '14px', color: urgentCount > 0 || overdueCount > 0 ? '#f59e0b' : muted, margin: 0 }}>{getMorningBriefing()}</p>
       </div>
 
+      {/* Today's productions */}
       {todayProductions.length > 0 && (
-        <div style={{ background: 'rgba(30,108,181,0.08)', border: '0.5px solid rgba(30,108,181,0.2)', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 600, color: '#5ba3e0', margin: '0 0 8px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>🎬 Today's productions</p>
-          {todayProductions.map((p, i) => (
-            <Link key={p.id} href={`/dashboard/productions/${p.id}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', padding: i > 0 ? '6px 0 0' : '0' }}>
-              <span style={{ fontSize: '12px', color: muted }}>#{p.production_number}</span>
-              <span style={{ fontSize: '13px', fontWeight: 500, color: text }}>{p.title}</span>
-              <span style={{ fontSize: '11px', color: '#5ba3e0', marginLeft: 'auto' }}>{p.request_type_label || 'Production'}</span>
-            </Link>
-          ))}
+        <div style={{ background: 'rgba(30,108,181,0.08)', border: '1px solid rgba(30,108,181,0.2)', borderRadius: '14px', padding: '14px 20px', marginBottom: '20px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#5ba3e0', margin: '0 0 10px', textTransform: 'uppercase' as const, letterSpacing: '0.8px' }}>🎬 Today's productions</p>
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+            {todayProductions.map(p => (
+              <Link key={p.id} href={`/dashboard/productions/${p.id}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+                <span style={{ fontSize: '13px', color: muted }}>#{p.production_number}</span>
+                <span style={{ fontSize: '15px', fontWeight: 500, color: text }}>{p.title}</span>
+                <span style={{ fontSize: '12px', color: '#5ba3e0', background: 'rgba(30,108,181,0.12)', padding: '3px 10px', borderRadius: '6px' }}>{p.request_type_label || 'Production'}</span>
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '4px', background: dark ? '#1e2a3a' : '#e2e8f0', borderRadius: '12px', padding: '3px', width: 'fit-content', marginBottom: '16px' }}>
+      {/* View toggle */}
+      <div style={{ display: 'flex', gap: '4px', background: dark ? '#1e2a3a' : '#e2e8f0', borderRadius: '12px', padding: '4px', width: 'fit-content', marginBottom: '20px' }}>
         {(['my', 'team'] as const).map(v => (
-          <button key={v} onClick={() => setView(v)} style={{ fontSize: '13px', padding: '7px 20px', borderRadius: '10px', border: 'none', background: view === v ? '#1e6cb5' : 'transparent', color: view === v ? '#fff' : muted, cursor: 'pointer', fontFamily: 'inherit', fontWeight: view === v ? 600 : 400, minHeight: '40px', transition: 'all 0.15s' }}>
+          <button key={v} onClick={() => setView(v)} style={{ fontSize: '14px', padding: '8px 24px', borderRadius: '10px', border: 'none', background: view === v ? '#1e6cb5' : 'transparent', color: view === v ? '#fff' : muted, cursor: 'pointer', fontFamily: 'inherit', fontWeight: view === v ? 600 : 400, minHeight: '40px', transition: 'all 0.15s' }}>
             {v === 'my' ? 'My day' : 'Team view'}
           </button>
         ))}
@@ -170,102 +171,110 @@ supabase.from('productions').select('id, title, production_number, request_type_
 
       {view === 'my' && (
         <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }} className="metric-grid">
+          {/* Metric cards */}
+          <div className="metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
             {[
               { label: 'Open tasks', value: String(myTasks.length), sub: 'assigned to you', hi: false },
               { label: 'Overdue', value: String(overdueCount), sub: overdueCount === 0 ? 'all on track ✓' : 'need attention', hi: overdueCount > 0, color: '#ef4444' },
-              { label: 'High priority', value: String(urgentCount), sub: urgentCount === 0 ? 'nothing urgent' : 'urgent', hi: urgentCount > 0, color: '#f59e0b' },
+              { label: 'High priority', value: String(urgentCount), sub: urgentCount === 0 ? 'nothing urgent' : 'urgent tasks', hi: urgentCount > 0, color: '#f59e0b' },
               { label: 'Next due', value: nextDueInfo?.label || '—', sub: nextDue?.title || 'no tasks due', hi: false, valueColor: nextDueInfo?.color },
-              { label: 'Productions', value: String(myProductions.length), sub: 'you are on', hi: false },
+              { label: 'My productions', value: String(myProductions.length), sub: 'you are assigned to', hi: false },
             ].map(({ label, value, sub, hi, color, valueColor }) => (
-              <div key={label} style={{ background: hi ? `${color}12` : metricBg, borderRadius: '14px', padding: '16px', border: `1px solid ${hi ? `${color}35` : border}` }}>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: hi ? color : muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.8px' }}>{label}</p>
-                <p style={{ fontSize: '30px', fontWeight: 700, color: valueColor || (hi ? color : text), margin: '0 0 2px', lineHeight: 1 }}>{value}</p>
-                <p style={{ fontSize: '11px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{sub}</p>
+              <div key={label} style={{ background: hi ? `${color}12` : metricBg, borderRadius: '16px', padding: '20px 24px', border: `1px solid ${hi ? `${color}35` : border}` }}>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: hi ? color : muted, margin: '0 0 8px', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>{label}</p>
+                <p style={{ fontSize: '38px', fontWeight: 800, color: valueColor || (hi ? color : text), margin: '0 0 4px', lineHeight: 1 }}>{value}</p>
+                <p style={{ fontSize: '13px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{sub}</p>
               </div>
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }} className="quick-grid">
+          {/* Quick actions */}
+          <div className="quick-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
             {QUICK_ACTIONS.map(({ href, label, desc, color, icon }) => (
               <Link key={href} href={href} style={{ textDecoration: 'none' }}>
-                <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '12px', minHeight: '64px' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = color; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = border; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)' }}
+                <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', padding: '18px 20px', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '16px', minHeight: '80px' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = color; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = `0 4px 20px ${color}20` }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = border; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none' }}
                 >
-                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>{icon}</div>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: text, margin: 0 }}>{label}</p>
-                    <p style={{ fontSize: '11px', color: muted, margin: 0 }}>{desc}</p>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>{icon}</div>
+                  <div>
+                    <p style={{ fontSize: '15px', fontWeight: 700, color: text, margin: 0 }}>{label}</p>
+                    <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>{desc}</p>
                   </div>
                 </div>
               </Link>
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px' }}>
-            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: `1px solid ${border}` }}>
-                <h2 style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0 }}>My tasks</h2>
-                <Link href="/dashboard/tasks" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
+          {/* Tasks + Productions — full height */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '16px' }}>
+
+            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: `1px solid ${border}` }}>
+                <h2 style={{ fontSize: '17px', fontWeight: 700, color: text, margin: 0 }}>My tasks</h2>
+                <Link href="/dashboard/tasks" style={{ fontSize: '14px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
               </div>
-              {myTasks.length === 0 ? (
-                <div style={{ padding: '32px 20px', textAlign: 'center' }}>
-                  <p style={{ fontSize: '14px', color: muted, margin: '0 0 8px' }}>No open tasks</p>
-                  <Link href="/dashboard/tasks" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none' }}>Create a task →</Link>
-                </div>
-              ) : myTasks.map((task, i) => {
-                const dateInfo = formatDate(task.due_date)
-                return (
-                  <Link key={task.id} href="/dashboard/tasks" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < myTasks.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.1s' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = rowHover}
-                    onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
-                  >
-                    <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: `1.5px solid ${task.status === 'in progress' ? '#f59e0b' : border}`, flexShrink: 0, background: task.status === 'in progress' ? 'rgba(245,158,11,0.12)' : 'transparent' }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.title}</p>
-                      {task.productions && <p style={{ fontSize: '11px', color: muted, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.productions.title}</p>}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px', flexShrink: 0 }}>
-                      {statusBadge(task.status)}
-                      {dateInfo && <span style={{ fontSize: '10px', color: dateInfo.color, fontWeight: 600 }}>{dateInfo.label}</span>}
-                    </div>
-                  </Link>
-                )
-              })}
+              <div style={{ flex: 1 }}>
+                {myTasks.length === 0 ? (
+                  <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                    <p style={{ fontSize: '15px', color: muted, margin: '0 0 10px' }}>No open tasks</p>
+                    <Link href="/dashboard/tasks" style={{ fontSize: '14px', color: '#3b82f6', textDecoration: 'none' }}>Create a task →</Link>
+                  </div>
+                ) : myTasks.map((task, i) => {
+                  const dateInfo = formatDate(task.due_date)
+                  return (
+                    <Link key={task.id} href="/dashboard/tasks" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px', borderBottom: i < myTasks.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.1s' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = rowHover}
+                      onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
+                    >
+                      <div style={{ width: '18px', height: '18px', borderRadius: '5px', border: `2px solid ${task.status === 'in progress' ? '#f59e0b' : border}`, flexShrink: 0, background: task.status === 'in progress' ? 'rgba(245,158,11,0.12)' : 'transparent' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.title}</p>
+                        {task.productions && <p style={{ fontSize: '12px', color: muted, margin: '3px 0 0' }}>{task.productions.title}</p>}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+                        {statusBadge(task.status)}
+                        {dateInfo && <span style={{ fontSize: '11px', color: dateInfo.color, fontWeight: 700 }}>{dateInfo.label}</span>}
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
             </div>
 
-            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: `1px solid ${border}` }}>
-                <h2 style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0 }}>My productions</h2>
-                <Link href="/dashboard/productions" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
+            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: `1px solid ${border}` }}>
+                <h2 style={{ fontSize: '17px', fontWeight: 700, color: text, margin: 0 }}>My productions</h2>
+                <Link href="/dashboard/productions" style={{ fontSize: '14px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
               </div>
-              {myProductions.length === 0 ? (
-                <div style={{ padding: '32px 20px', textAlign: 'center' }}>
-                  <p style={{ fontSize: '14px', color: muted, margin: '0 0 8px' }}>No active productions</p>
-                  <Link href="/dashboard/productions" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none' }}>Browse productions →</Link>
-                </div>
-              ) : myProductions.map((prod, i) => {
-                const progress = getProgress(prod)
-                const typeLabel = prod.request_type_label || prod.type || 'Unknown'
-                return (
-                  <Link key={prod.id} href={`/dashboard/productions/${prod.id}`} style={{ textDecoration: 'none', display: 'block', padding: '12px 16px', borderBottom: i < myProductions.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.1s' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = rowHover}
-                    onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1, paddingRight: '8px' }}>{prod.title}</p>
-                      <span style={{ fontSize: '11px', color: muted, flexShrink: 0 }}>{progress ? `${progress.pct}%` : '—'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ flex: 1, height: '4px', background: dark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
-                        {progress && <div style={{ width: `${progress.pct}%`, height: '100%', background: progress.pct === 100 ? '#22c55e' : '#3b82f6', borderRadius: '2px' }} />}
+              <div style={{ flex: 1 }}>
+                {myProductions.length === 0 ? (
+                  <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                    <p style={{ fontSize: '15px', color: muted, margin: '0 0 10px' }}>No active productions</p>
+                    <Link href="/dashboard/productions" style={{ fontSize: '14px', color: '#3b82f6', textDecoration: 'none' }}>Browse productions →</Link>
+                  </div>
+                ) : myProductions.map((prod, i) => {
+                  const progress = getProgress(prod)
+                  const typeLabel = prod.request_type_label || prod.type || 'Unknown'
+                  return (
+                    <Link key={prod.id} href={`/dashboard/productions/${prod.id}`} style={{ textDecoration: 'none', display: 'block', padding: '14px 20px', borderBottom: i < myProductions.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.1s' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = rowHover}
+                      onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1, paddingRight: '10px' }}>{prod.title}</p>
+                        <span style={{ fontSize: '12px', color: muted, flexShrink: 0, fontWeight: 500 }}>{progress ? `${progress.pct}%` : '—'}</span>
                       </div>
-                      <span style={{ fontSize: '11px', color: muted, flexShrink: 0, maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{typeLabel}</span>
-                    </div>
-                  </Link>
-                )
-              })}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ flex: 1, height: '5px', background: dark ? 'rgba(255,255,255,0.08)' : '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                          {progress && <div style={{ width: `${progress.pct}%`, height: '100%', background: progress.pct === 100 ? '#22c55e' : '#3b82f6', borderRadius: '3px' }} />}
+                        </div>
+                        <span style={{ fontSize: '12px', color: muted, flexShrink: 0, maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{typeLabel}</span>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -273,49 +282,45 @@ supabase.from('productions').select('id, title, production_number, request_type_
 
       {view === 'team' && (
         <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }} className="metric-grid">
+          <div className="metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
             {[
               { label: 'Team members', value: String(teamMembers.length), sub: 'active' },
               { label: 'Open tasks', value: String(allTasks.length), sub: 'across team' },
               { label: 'High priority', value: String(allTasks.filter(t => t.priority === 'high' || t.priority === 'day of').length), sub: 'team wide' },
-              { label: 'Productions', value: String(totalProductions), sub: 'total in system' },
+              { label: 'Total productions', value: String(totalProductions), sub: 'in system' },
             ].map(({ label, value, sub }) => (
-              <div key={label} style={{ background: metricBg, borderRadius: '14px', padding: '16px', border: `1px solid ${border}` }}>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.8px' }}>{label}</p>
-                <p style={{ fontSize: '30px', fontWeight: 700, color: text, margin: '0 0 2px', lineHeight: 1 }}>{value}</p>
-                <p style={{ fontSize: '11px', color: muted, margin: 0 }}>{sub}</p>
+              <div key={label} style={{ background: metricBg, borderRadius: '16px', padding: '20px 24px', border: `1px solid ${border}` }}>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: muted, margin: '0 0 8px', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>{label}</p>
+                <p style={{ fontSize: '38px', fontWeight: 800, color: text, margin: '0 0 4px', lineHeight: 1 }}>{value}</p>
+                <p style={{ fontSize: '13px', color: muted, margin: 0 }}>{sub}</p>
               </div>
             ))}
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '16px' }}>
             <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden' }}>
-              <div style={{ padding: '14px 16px', borderBottom: `1px solid ${border}` }}>
-                <h2 style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0 }}>Team</h2>
+              <div style={{ padding: '18px 20px', borderBottom: `1px solid ${border}` }}>
+                <h2 style={{ fontSize: '17px', fontWeight: 700, color: text, margin: 0 }}>Team</h2>
               </div>
               {teamMembers.map((member, i) => (
-                <div key={member.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < teamMembers.length - 1 ? `1px solid ${border}` : 'none' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>{member.name.slice(0, 2).toUpperCase()}</div>
+                <div key={member.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px', borderBottom: i < teamMembers.length - 1 ? `1px solid ${border}` : 'none' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>{member.name.slice(0, 2).toUpperCase()}</div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0 }}>{member.name}</p>
-                    <p style={{ fontSize: '12px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{member.role}</p>
+                    <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0 }}>{member.name}</p>
+                    <p style={{ fontSize: '13px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{member.role}</p>
                   </div>
-                  <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontWeight: 600 }}>Active</span>
+                  <span style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '20px', background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontWeight: 600 }}>Active</span>
                 </div>
               ))}
             </div>
-
             <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: `1px solid ${border}` }}>
-                <h2 style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0 }}>All open tasks</h2>
-                <Link href="/dashboard/tasks" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: `1px solid ${border}` }}>
+                <h2 style={{ fontSize: '17px', fontWeight: 700, color: text, margin: 0 }}>All open tasks</h2>
+                <Link href="/dashboard/tasks" style={{ fontSize: '14px', color: '#3b82f6', textDecoration: 'none', fontWeight: 500 }}>View all →</Link>
               </div>
-              {allTasks.length === 0 ? (
-                <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '32px 20px', margin: 0 }}>No open tasks</p>
-              ) : allTasks.map((task, i) => (
-                <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < allTasks.length - 1 ? `1px solid ${border}` : 'none' }}>
-                  <div style={{ width: '14px', height: '14px', borderRadius: '3px', border: `1.5px solid ${border}`, flexShrink: 0 }} />
-                  <p style={{ fontSize: '13px', color: text, margin: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.title}</p>
+              {allTasks.map((task, i) => (
+                <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px', borderBottom: i < allTasks.length - 1 ? `1px solid ${border}` : 'none' }}>
+                  <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: `2px solid ${border}`, flexShrink: 0 }} />
+                  <p style={{ fontSize: '14px', color: text, margin: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.title}</p>
                   {statusBadge(task.status)}
                 </div>
               ))}
@@ -329,7 +334,6 @@ supabase.from('productions').select('id, title, production_number, request_type_
           .metric-grid { grid-template-columns: repeat(5, 1fr) !important; }
           .quick-grid { grid-template-columns: repeat(4, 1fr) !important; }
         }
-        @media (min-width: 640px) .metric-grid-team { grid-template-columns: repeat(4, 1fr) !important; }
       `}</style>
     </div>
   )
