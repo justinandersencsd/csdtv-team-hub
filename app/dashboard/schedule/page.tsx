@@ -234,12 +234,18 @@ export default function SchedulePage() {
     if (prodIds.length > 0) {
       const monthStartStr = toLocalDateStr(firstOfMonth)
       const monthEndStr   = toLocalDateStr(lastOfMonth)
+      // Extend query by 1 day on each side to capture UTC timestamps that
+      // fall on the boundary day in local time (e.g. 11pm UTC = prev day locally)
+      const queryStart = new Date(firstOfMonth)
+      queryStart.setDate(queryStart.getDate() - 1)
+      const queryEnd = new Date(lastOfMonth)
+      queryEnd.setDate(queryEnd.getDate() + 1)
       const prodsRes = await supabase
         .from('productions')
         .select('id,title,production_number,request_type_label,start_datetime')
         .in('id', prodIds)
-        .gte('start_datetime', monthStartStr)
-        .lte('start_datetime', monthEndStr + 'T23:59:59')
+        .gte('start_datetime', toLocalDateStr(queryStart))
+        .lte('start_datetime', toLocalDateStr(queryEnd) + 'T23:59:59')
       setProductions(prodsRes.data || [])
     } else {
       setProductions([])
@@ -273,8 +279,14 @@ export default function SchedulePage() {
   }
 
   const getProdsForDay = (date: Date): Production[] => {
-    const dateStr = toLocalDateStr(date)
-    return productions.filter(p => p.start_datetime?.startsWith(dateStr))
+    return productions.filter(p => {
+      if (!p.start_datetime) return false
+      const prodDate = new Date(p.start_datetime)
+      // Compare in local time so UTC timestamps display on the correct local day
+      return prodDate.getFullYear() === date.getFullYear() &&
+             prodDate.getMonth()    === date.getMonth() &&
+             prodDate.getDate()     === date.getDate()
+    })
   }
 
   const isInPayPeriod = (d: Date, pp: typeof primaryPP): boolean => {
