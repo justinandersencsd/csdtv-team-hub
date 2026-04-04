@@ -75,6 +75,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [userId, setUserId] = useState<string | null>(null)
 
   const dark = theme === 'dark'
   const bg       = dark ? '#0a0f1e' : '#f8f9fc'
@@ -107,31 +108,34 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         setUserName(teamByEmail.name)
         setUserRole(teamByEmail.role)
         setUserColor(teamByEmail.avatar_color || '#e8a020')
+        setUserId(teamByEmail.id)
         return
       }
 
       // Normal lookup by supabase_user_id
       const { data } = await supabase
         .from('team')
-        .select('name, role, avatar_color')
+        .select('id, name, role, avatar_color')
         .eq('supabase_user_id', session.user.id)
         .single()
       if (data) {
         setUserName(data.name)
         setUserRole(data.role)
         setUserColor(data.avatar_color || '#e8a020')
+        setUserId(data.id)
       }
     }
     loadUser()
   }, [supabase])
 
   useEffect(() => {
+    if (!userId) return
     const loadUnread = async () => {
-      const { count } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('read', false)
+      const { count } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('read', false)
       setUnreadCount(count || 0)
     }
     loadUnread()
-  }, [supabase])
+  }, [supabase, userId])
 
   const handleSignOut = useCallback(async () => {
     await supabase.auth.signOut()
@@ -271,7 +275,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
       </div>
 
-      {showNotifications && <NotificationPanel onClose={() => setShowNotifications(false)} onUnreadChange={setUnreadCount} />}
+      {showNotifications && <NotificationPanel onClose={() => setShowNotifications(false)} onUnreadChange={setUnreadCount} userId={userId} />}
       {showSearch && <SearchPanel onClose={() => setShowSearch(false)} />}
 
       <style>{`

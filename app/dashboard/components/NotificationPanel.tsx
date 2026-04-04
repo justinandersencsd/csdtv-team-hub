@@ -18,9 +18,10 @@ interface Notification {
 interface Props {
   onClose: () => void
   onUnreadChange: (count: number) => void
+  userId: string | null
 }
 
-export default function NotificationPanel({ onClose, onUnreadChange }: Props) {
+export default function NotificationPanel({ onClose, onUnreadChange, userId }: Props) {
   const { theme } = useTheme()
   const dark = theme === 'dark'
   const supabase = createClient()
@@ -34,23 +35,24 @@ export default function NotificationPanel({ onClose, onUnreadChange }: Props) {
   const bg     = dark ? '#0d1525' : '#ffffff'
 
   const loadNotifications = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    if (!userId) return
     const { data } = await supabase
       .from('notifications')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(30)
     setNotifications(data || [])
     const unread = (data || []).filter(n => !n.read).length
     onUnreadChange(unread)
     setLoading(false)
-  }, [supabase, onUnreadChange])
+  }, [supabase, onUnreadChange, userId])
 
   useEffect(() => { loadNotifications() }, [loadNotifications])
 
   const markAllRead = async () => {
-    await supabase.from('notifications').update({ read: true }).eq('read', false)
+    if (!userId) return
+    await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
     onUnreadChange(0)
   }

@@ -52,15 +52,18 @@ export default function SettingsPage() {
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-    const [userRes, teamRes, prefsRes] = await Promise.all([
+    const [userRes, teamRes] = await Promise.all([
       supabase.from('team').select('*').eq('supabase_user_id', session.user.id).single(),
       supabase.from('team').select('*').eq('active', true).order('name'),
-      supabase.from('notification_preferences').select('*').eq('user_id', session.user.id).single(),
     ])
     setCurrentUser(userRes.data)
     setTeam(teamRes.data || [])
-    if (userRes.data) { setProfileForm({ name: userRes.data.name, email: userRes.data.email }); setSelectedColor(userRes.data.avatar_color || '#e8a020') }
-    if (prefsRes.data) setNotifPrefs(prefsRes.data)
+    if (userRes.data) {
+      setProfileForm({ name: userRes.data.name, email: userRes.data.email })
+      setSelectedColor(userRes.data.avatar_color || '#e8a020')
+      const { data: prefs } = await supabase.from('notification_preferences').select('*').eq('user_id', userRes.data.id).single()
+      if (prefs) setNotifPrefs(prefs)
+    }
     setLoading(false)
   }, [supabase])
 
