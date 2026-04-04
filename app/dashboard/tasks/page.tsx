@@ -497,6 +497,7 @@ export default function TasksPage() {
             </div>
           ))
         )}
+      </div>
 
       {/* Detail panel */}
       {selectedTask && (

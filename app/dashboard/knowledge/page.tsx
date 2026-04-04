@@ -10,18 +10,26 @@ interface Article {
   content: string
   category: string
   created_by: string
-  created_at: string
   updated_at: string
   author?: { name: string } | null
 }
 
-interface CurrentUser {
-  id: string
-  name: string
-  role: string
-}
+interface CurrentUser { id: string; name: string; role: string }
 
 const CATEGORIES = ['Process', 'Reference', 'Policy', 'Workflow', 'Other']
+const CAT_STYLES: Record<string, { bg: string; color: string }> = {
+  Process:   { bg: 'rgba(30,108,181,0.12)',  color: '#5ba3e0' },
+  Reference: { bg: 'rgba(100,116,139,0.12)', color: '#94a3b8' },
+  Policy:    { bg: 'rgba(155,133,224,0.12)', color: '#9b85e0' },
+  Workflow:  { bg: 'rgba(34,197,94,0.12)',   color: '#22c55e' },
+  Other:     { bg: 'rgba(232,160,32,0.12)',  color: '#e8a020' },
+}
+
+const STARTER_ARTICLES = [
+  { title: 'Livestream setup process', category: 'Process', content: 'Step by step guide for setting up a livestream...' },
+  { title: 'Board meeting workflow', category: 'Workflow', content: 'Complete board meeting production checklist and workflow...' },
+  { title: 'Equipment checkout policy', category: 'Policy', content: 'Rules and procedures for checking out equipment...' },
+]
 
 export default function KnowledgePage() {
   const { theme } = useTheme()
@@ -32,25 +40,19 @@ export default function KnowledgePage() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [catFilter, setCatFilter] = useState('all')
   const [selected, setSelected] = useState<Article | null>(null)
   const [editing, setEditing] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [form, setForm] = useState({ title: '', content: '', category: 'Process' })
+  const [showMobileDetail, setShowMobileDetail] = useState(false)
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
   const border  = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'
   const cardBg  = dark ? '#0d1525' : '#ffffff'
   const inputBg = dark ? '#0a0f1e' : '#f8f9fc'
-
-  const CATEGORY_COLORS: Record<string, { bg: string; color: string }> = {
-    Process:   { bg: 'rgba(30,108,181,0.12)',  color: '#5ba3e0' },
-    Reference: { bg: 'rgba(100,116,139,0.12)', color: '#94a3b8' },
-    Policy:    { bg: 'rgba(155,133,224,0.12)', color: '#9b85e0' },
-    Workflow:  { bg: 'rgba(34,197,94,0.12)',   color: '#22c55e' },
-    Other:     { bg: 'rgba(232,160,32,0.12)',  color: '#e8a020' },
-  }
+  const hoverBg = dark ? 'rgba(255,255,255,0.03)' : '#f8fafc'
 
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -73,109 +75,183 @@ export default function KnowledgePage() {
       if (data) { setArticles(prev => prev.map(a => a.id === data.id ? data : a)); setSelected(data) }
     } else {
       const { data } = await supabase.from('knowledge_base').insert({ title: form.title, content: form.content, category: form.category, created_by: currentUser.id }).select('*, author:team(name)').single()
-      if (data) setArticles(prev => [data, ...prev])
+      if (data) { setArticles(prev => [data, ...prev]); setSelected(data); setShowMobileDetail(true) }
     }
     setEditing(false)
     setShowNew(false)
     setForm({ title: '', content: '', category: 'Process' })
   }
 
+  const openArticle = (article: Article) => {
+    setSelected(article)
+    setEditing(false)
+    setShowMobileDetail(true)
+  }
+
   const filtered = articles.filter(a => {
     const matchSearch = search === '' || a.title.toLowerCase().includes(search.toLowerCase()) || a.content.toLowerCase().includes(search.toLowerCase())
-    const matchCat = categoryFilter === 'all' || a.category === categoryFilter
+    const matchCat = catFilter === 'all' || a.category === catFilter
     return matchSearch && matchCat
   })
 
-  const inputStyle = { background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: text, fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' as const }
+  const inputStyle: React.CSSProperties = {
+    background: inputBg, border: `0.5px solid ${border}`, borderRadius: '10px',
+    padding: '10px 14px', fontSize: '14px', color: text, fontFamily: 'inherit',
+    outline: 'none', width: '100%', boxSizing: 'border-box', minHeight: '44px',
+  }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading knowledge base...</p></div>
+  const DetailPanel = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: `0.5px solid ${border}` }}>
+        <button onClick={() => setShowMobileDetail(false)} className="mobile-back-btn" style={{ display: 'none', background: 'none', border: 'none', color: '#5ba3e0', cursor: 'pointer', fontSize: '14px', fontFamily: 'inherit', padding: '4px 0', minHeight: '44px', alignItems: 'center', gap: '6px' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
+        <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+          {selected && !editing && (
+            <button onClick={() => { setEditing(true); setForm({ title: selected.title, content: selected.content, category: selected.category }) }}
+              style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>
+              Edit
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+        {(editing || showNew) ? (
+          <div>
+            <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Article title" style={{ ...inputStyle, fontSize: '18px', fontWeight: 600, marginBottom: '10px' }} />
+            <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={{ ...inputStyle, marginBottom: '12px' }}>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="Write your article here. Keep it practical and step-by-step." style={{ ...inputStyle, minHeight: '280px', resize: 'vertical' as const, lineHeight: 1.7 }} />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+              <button onClick={saveArticle} style={{ fontSize: '14px', padding: '10px 20px', borderRadius: '10px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, minHeight: '44px' }}>Save article</button>
+              <button onClick={() => { setEditing(false); setShowNew(false) }} style={{ fontSize: '14px', padding: '10px 20px', borderRadius: '10px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>Cancel</button>
+            </div>
+          </div>
+        ) : selected ? (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: (CAT_STYLES[selected.category] || CAT_STYLES.Other).bg, color: (CAT_STYLES[selected.category] || CAT_STYLES.Other).color, fontWeight: 500 }}>{selected.category}</span>
+            </div>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, color: text, margin: '0 0 6px', lineHeight: 1.3 }}>{selected.title}</h2>
+            <p style={{ fontSize: '12px', color: muted, margin: '0 0 24px' }}>
+              {selected.author?.name && `By ${selected.author.name} · `}
+              Updated {new Date(selected.updated_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </p>
+            <div style={{ fontSize: '14px', color: text, lineHeight: 1.8, whiteSpace: 'pre-wrap' as const }}>{selected.content}</div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+
+  if (loading) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading knowledge base...</p></div>
+  }
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: 500, color: text, margin: 0 }}>Knowledge base</h1>
           <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>{articles.length} articles</p>
         </div>
-        <button onClick={() => { setShowNew(true); setSelected(null); setForm({ title: '', content: '', category: 'Process' }) }} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <button onClick={() => { setShowNew(true); setSelected(null); setForm({ title: '', content: '', category: 'Process' }); setShowMobileDetail(true) }}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', padding: '10px 18px', borderRadius: '10px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, minHeight: '44px' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           New article
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selected || showNew ? '1fr 1.5fr' : '1fr', gap: '16px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 12px', marginBottom: '10px' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles..." style={{ background: 'none', border: 'none', outline: 'none', fontSize: '13px', color: text, fontFamily: 'inherit', width: '100%' }} />
+      <div className="kb-layout" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+
+        {/* List side — hidden on mobile when detail is shown */}
+        <div className={`kb-list ${showMobileDetail ? 'kb-list-hidden' : ''}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '10px 14px', marginBottom: '10px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles..." style={{ background: 'none', border: 'none', outline: 'none', fontSize: '14px', color: text, fontFamily: 'inherit', width: '100%', minHeight: '24px' }} />
+            {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>}
           </div>
+
           <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
             {['all', ...CATEGORIES].map(cat => {
-              const active = categoryFilter === cat
-              const style = cat !== 'all' ? CATEGORY_COLORS[cat] : null
+              const active = catFilter === cat
+              const cs = cat !== 'all' ? CAT_STYLES[cat] : null
               return (
-                <button key={cat} onClick={() => setCategoryFilter(cat)} style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '6px', border: `0.5px solid ${border}`, background: active ? (style?.bg || '#1e6cb5') : cardBg, color: active ? (style?.color || '#fff') : muted, cursor: 'pointer', fontFamily: 'inherit' }}>
+                <button key={cat} onClick={() => setCatFilter(cat)} style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '8px', border: `0.5px solid ${active && cs ? cs.color : border}`, background: active && cs ? cs.bg : active ? '#1e6cb5' : cardBg, color: active && cs ? cs.color : active ? '#fff' : muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '36px' }}>
                   {cat === 'all' ? 'All' : cat}
                 </button>
               )
             })}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {filtered.length === 0 ? (
-              <p style={{ color: muted, fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>No articles found</p>
-            ) : filtered.map(article => {
-              const catStyle = CATEGORY_COLORS[article.category] || CATEGORY_COLORS.Other
-              const isSelected = selected?.id === article.id
-              return (
-                <div key={article.id} onClick={() => { setSelected(article); setShowNew(false); setEditing(false) }} style={{ padding: '12px 14px', background: isSelected ? (dark ? 'rgba(30,108,181,0.15)' : 'rgba(30,108,181,0.08)') : cardBg, border: `0.5px solid ${isSelected ? '#1e6cb5' : border}`, borderRadius: '10px', cursor: 'pointer', transition: 'all 0.15s' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0, flex: 1 }}>{article.title}</p>
-                    <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '6px', background: catStyle.bg, color: catStyle.color, flexShrink: 0 }}>{article.category}</span>
-                  </div>
-                  <p style={{ fontSize: '11px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {article.content.slice(0, 80)}...
-                  </p>
-                </div>
-              )
-            })}
-          </div>
-        </div>
 
-        {(selected || showNew) && (
-          <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '20px', position: 'sticky', top: '80px', maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
-            {(editing || showNew) ? (
-              <div>
-                <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Article title" style={{ ...inputStyle, fontSize: '16px', fontWeight: 500, marginBottom: '10px' }} />
-                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={{ ...inputStyle, marginBottom: '10px' }}>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} placeholder="Write your article content here... Use line breaks for formatting." style={{ ...inputStyle, minHeight: '300px', resize: 'vertical', lineHeight: 1.6 }} />
-                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                  <button onClick={saveArticle} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Save</button>
-                  <button onClick={() => { setEditing(false); setShowNew(false) }} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px' }}>
+              {articles.length === 0 ? (
+                <div>
+                  <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: '0 0 6px' }}>No articles yet</p>
+                  <p style={{ fontSize: '13px', color: muted, margin: '0 0 16px' }}>Start documenting your team's processes</p>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    {STARTER_ARTICLES.map(s => (
+                      <button key={s.title} onClick={() => { setForm({ title: s.title, content: s.content, category: s.category }); setShowNew(true); setShowMobileDetail(true) }} style={{ fontSize: '12px', padding: '8px 14px', borderRadius: '8px', background: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        + {s.title}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : selected && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px', gap: '10px' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '6px', background: (CATEGORY_COLORS[selected.category] || CATEGORY_COLORS.Other).bg, color: (CATEGORY_COLORS[selected.category] || CATEGORY_COLORS.Other).color }}>{selected.category}</span>
+              ) : (
+                <p style={{ color: muted, fontSize: '14px' }}>No articles match your search</p>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {filtered.map(article => {
+                const cs = CAT_STYLES[article.category] || CAT_STYLES.Other
+                const isSelected = selected?.id === article.id
+                return (
+                  <div key={article.id} onClick={() => openArticle(article)} style={{ padding: '14px 16px', background: isSelected ? (dark ? 'rgba(30,108,181,0.15)' : 'rgba(30,108,181,0.06)') : cardBg, border: `0.5px solid ${isSelected ? '#1e6cb5' : border}`, borderRadius: '12px', cursor: 'pointer', transition: 'all 0.15s' }}
+                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = hoverBg }}
+                    onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = cardBg }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+                      <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0, flex: 1 }}>{article.title}</p>
+                      <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '6px', background: cs.bg, color: cs.color, flexShrink: 0, fontWeight: 500 }}>{article.category}</span>
                     </div>
-                    <h2 style={{ fontSize: '18px', fontWeight: 500, color: text, margin: 0 }}>{selected.title}</h2>
-                    <p style={{ fontSize: '11px', color: muted, margin: '4px 0 0' }}>
-                      {selected.author?.name && `By ${selected.author.name} · `}
-                      Updated {new Date(selected.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    <p style={{ fontSize: '12px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                      {article.content.slice(0, 90)}
                     </p>
                   </div>
-                  <button onClick={() => { setEditing(true); setForm({ title: selected.title, content: selected.content, category: selected.category }) }} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>Edit</button>
-                </div>
-                <div style={{ fontSize: '13px', color: text, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{selected.content}</div>
-              </div>
-            )}
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Detail side */}
+        {(selected || showNew) && (
+          <div className={`kb-detail ${showMobileDetail ? 'kb-detail-visible' : 'kb-detail-desktop'}`} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden', minHeight: '400px' }}>
+            <DetailPanel />
           </div>
         )}
       </div>
+
+      <style>{`
+        @media (min-width: 768px) {
+          .kb-layout { grid-template-columns: 340px 1fr !important; }
+          .kb-list { display: block !important; }
+          .kb-list-hidden { display: block !important; }
+          .kb-detail { display: block !important; }
+          .kb-detail-desktop { display: block !important; }
+        }
+        @media (max-width: 767px) {
+          .kb-list-hidden { display: none !important; }
+          .kb-detail { display: none; }
+          .kb-detail-visible { display: block !important; }
+          .mobile-back-btn { display: flex !important; }
+        }
+      `}</style>
     </div>
   )
 }
