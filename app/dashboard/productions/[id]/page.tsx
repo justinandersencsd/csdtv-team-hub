@@ -57,9 +57,10 @@ export default function ProductionDetailPage() {
   const dark = theme === 'dark'
   const params = useParams()
   const supabase = createClient()
-  const id = params.id as string
+  const productionNum = params.id as string
 
   const [production, setProduction] = useState<Production | null>(null)
+  const [uuid, setUuid] = useState<string>('')
   const [checklist, setChecklist] = useState<ChecklistItem[]>([])
   const [members, setMembers] = useState<ProductionMember[]>([])
   const [allTeam, setAllTeam] = useState<TeamMember[]>([])
@@ -93,17 +94,31 @@ export default function ProductionDetailPage() {
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-    const [prodRes, checkRes, membersRes, teamRes, linksRes, actRes, userRes, kbRes] = await Promise.all([
-      supabase.from('productions').select('*').eq('id', id).single(),
-      supabase.from('checklist_items').select('*').eq('production_id', id).order('sort_order'),
-      supabase.from('production_members').select('*, team:team(id, name, role, avatar_color)').eq('production_id', id),
+
+    // Fetch by production_number (the clean URL param)
+    const prodRes = await supabase
+      .from('productions')
+      .select('*')
+      .eq('production_number', Number(productionNum))
+      .single()
+
+    if (!prodRes.data) { setLoading(false); return }
+
+    const prodUUID = prodRes.data.id
+    setProduction(prodRes.data)
+    setUuid(prodUUID)
+
+    // All related queries use the UUID as FK
+    const [checkRes, membersRes, teamRes, linksRes, actRes, userRes, kbRes] = await Promise.all([
+      supabase.from('checklist_items').select('*').eq('production_id', prodUUID).order('sort_order'),
+      supabase.from('production_members').select('*, team:team(id, name, role, avatar_color)').eq('production_id', prodUUID),
       supabase.from('team').select('*').eq('active', true),
-      supabase.from('production_links').select('*').eq('production_id', id).order('created_at'),
-      supabase.from('production_activity').select('*, team:team(name)').eq('production_id', id).order('created_at', { ascending: false }).limit(20),
+      supabase.from('production_links').select('*').eq('production_id', prodUUID).order('created_at'),
+      supabase.from('production_activity').select('*, team:team(name)').eq('production_id', prodUUID).order('created_at', { ascending: false }).limit(20),
       supabase.from('team').select('*').eq('supabase_user_id', session.user.id).single(),
       supabase.from('knowledge_base').select('id, title, category').order('title'),
     ])
-    setProduction(prodRes.data)
+
     setChecklist(checkRes.data || [])
     setMembers(membersRes.data || [])
     setAllTeam(teamRes.data || [])
@@ -112,37 +127,37 @@ export default function ProductionDetailPage() {
     setCurrentUser(userRes.data)
     setKbArticles(kbRes.data || [])
     setLoading(false)
-  }, [supabase, id])
+  }, [supabase, productionNum])
 
   useEffect(() => { loadData() }, [loadData])
 
   const getTypeLabel = (prod: Production) => prod.request_type_label || prod.type || 'Unknown'
 
   const logActivity = useCallback(async (action: string, detail?: string) => {
-    if (!currentUser) return
-    await supabase.from('production_activity').insert({ production_id: id, user_id: currentUser.id, action, detail: detail || null })
-  }, [currentUser, id, supabase])
+    if (!currentUser || !uuid) return
+    await supabase.from('production_activity').insert({ production_id: uuid, user_id: currentUser.id, action, detail: detail || null })
+  }, [currentUser, uuid, supabase])
 
   const createTaskForProduction = useCallback(async () => {
-    if (!newTaskTitle || !currentUser) return
+    if (!newTaskTitle || !currentUser || !uuid) return
     await supabase.from('tasks').insert({
       title: newTaskTitle, priority: newTaskPriority,
       assigned_to: newTaskAssignee || null, due_date: newTaskDue || null,
-      production_id: id, status: 'pending', created_by: currentUser.id,
+      production_id: uuid, status: 'pending', created_by: currentUser.id,
     })
     setNewTaskTitle(''); setNewTaskAssignee(''); setNewTaskDue(''); setNewTaskPriority('normal')
     setShowCreateTask(false)
     await logActivity('Created task', newTaskTitle)
-  }, [newTaskTitle, newTaskPriority, newTaskAssignee, newTaskDue, currentUser, id, supabase, logActivity])
+  }, [newTaskTitle, newTaskPriority, newTaskAssignee, newTaskDue, currentUser, uuid, supabase, logActivity])
 
   const initChecklist = useCallback(async () => {
-    if (!production || !currentUser) return
+    if (!production || !currentUser || !uuid) return
     const typeLabel = getTypeLabel(production)
     const template = CHECKLIST_TEMPLATES[typeLabel] || CHECKLIST_TEMPLATES['Other, Unsure, Or Consultation']
-    const items = template.map((title, i) => ({ production_id: id, title, sort_order: i, completed: false }))
+    const items = template.map((title, i) => ({ production_id: uuid, title, sort_order: i, completed: false }))
     const { data } = await supabase.from('checklist_items').insert(items).select('*')
     if (data) { setChecklist(data); await logActivity('Initialized checklist', `${data.length} steps from ${typeLabel} template`) }
-  }, [production, currentUser, id, supabase, logActivity])
+  }, [production, currentUser, uuid, supabase, logActivity])
 
   const toggleItem = useCallback(async (item: ChecklistItem) => {
     const updates = { completed: !item.completed, completed_at: !item.completed ? new Date().toISOString() : null }
@@ -152,21 +167,21 @@ export default function ProductionDetailPage() {
   }, [supabase, logActivity])
 
   const massAssign = useCallback(async () => {
-    if (!selectedMember) return
-    await supabase.from('checklist_items').update({ assigned_to: selectedMember }).eq('production_id', id)
+    if (!selectedMember || !uuid) return
+    await supabase.from('checklist_items').update({ assigned_to: selectedMember }).eq('production_id', uuid)
     const member = allTeam.find(m => m.id === selectedMember)
     setChecklist(prev => prev.map(c => ({ ...c, assigned_to: selectedMember })))
     setSelectedMember(null)
     setAssignSuccess(true)
     setTimeout(() => setAssignSuccess(false), 2500)
     await logActivity('Mass assigned checklist', `All steps assigned to ${member?.name}`)
-  }, [selectedMember, id, supabase, allTeam, logActivity])
+  }, [selectedMember, uuid, supabase, allTeam, logActivity])
 
   const addMember = useCallback(async () => {
-    if (!memberToAdd) return
+    if (!memberToAdd || !uuid) return
     const existing = members.find(m => m.user_id === memberToAdd)
     if (existing) { setMemberToAdd(''); return }
-    const { data } = await supabase.from('production_members').insert({ production_id: id, user_id: memberToAdd }).select('*, team:team(id, name, role, avatar_color)').single()
+    const { data } = await supabase.from('production_members').insert({ production_id: uuid, user_id: memberToAdd }).select('*, team:team(id, name, role, avatar_color)').single()
     if (data) {
       setMembers(prev => [...prev, data])
       const member = allTeam.find(m => m.id === memberToAdd)
@@ -174,29 +189,30 @@ export default function ProductionDetailPage() {
     }
     setMemberToAdd('')
     setAddingMember(false)
-  }, [memberToAdd, members, id, supabase, allTeam, logActivity])
+  }, [memberToAdd, members, uuid, supabase, allTeam, logActivity])
 
   const removeMember = useCallback(async (memberId: string, memberName: string) => {
-    await supabase.from('production_members').delete().eq('production_id', id).eq('user_id', memberId)
+    if (!uuid) return
+    await supabase.from('production_members').delete().eq('production_id', uuid).eq('user_id', memberId)
     setMembers(prev => prev.filter(m => m.user_id !== memberId))
     await logActivity('Removed team member', memberName)
-  }, [id, supabase, logActivity])
+  }, [uuid, supabase, logActivity])
 
   const addLink = useCallback(async () => {
-    if (!newLinkTitle || !newLinkUrl || !currentUser) return
+    if (!newLinkTitle || !newLinkUrl || !currentUser || !uuid) return
     const url = newLinkUrl.startsWith('http') ? newLinkUrl : `https://${newLinkUrl}`
-    const { data } = await supabase.from('production_links').insert({ production_id: id, title: newLinkTitle, url, added_by: currentUser.id }).select().single()
+    const { data } = await supabase.from('production_links').insert({ production_id: uuid, title: newLinkTitle, url, added_by: currentUser.id }).select().single()
     if (data) { setLinks(prev => [...prev, data]); setNewLinkTitle(''); setNewLinkUrl(''); setShowLinkForm(false) }
-  }, [newLinkTitle, newLinkUrl, currentUser, id, supabase])
+  }, [newLinkTitle, newLinkUrl, currentUser, uuid, supabase])
 
   const addKBLink = useCallback(async () => {
-    if (!selectedKB) return
+    if (!selectedKB || !uuid) return
     const article = kbArticles.find(a => a.id === selectedKB)
     if (!article) return
     const url = `${window.location.origin}/dashboard/knowledge?article=${selectedKB}`
-    const { data } = await supabase.from('production_links').insert({ production_id: id, title: `KB: ${article.title}`, url, added_by: currentUser?.id }).select().single()
+    const { data } = await supabase.from('production_links').insert({ production_id: uuid, title: `KB: ${article.title}`, url, added_by: currentUser?.id }).select().single()
     if (data) { setLinks(prev => [...prev, data]); setSelectedKB(''); setShowKBLink(false) }
-  }, [selectedKB, kbArticles, id, supabase, currentUser])
+  }, [selectedKB, kbArticles, uuid, supabase, currentUser])
 
   const completedCount = checklist.filter(c => c.completed).length
   const progress = checklist.length > 0 ? Math.round((completedCount / checklist.length) * 100) : 0
@@ -224,8 +240,18 @@ export default function ProductionDetailPage() {
     return new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
   }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading production...</p></div>
-  if (!production) return <div style={{ textAlign: 'center', padding: '60px 20px' }}><p style={{ color: muted }}>Production not found</p><Link href="/dashboard/productions" style={{ color: '#5ba3e0' }}>Back</Link></div>
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+      <p style={{ color: muted }}>Loading production...</p>
+    </div>
+  )
+
+  if (!production) return (
+    <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+      <p style={{ color: muted }}>Production not found</p>
+      <Link href="/dashboard/productions" style={{ color: '#5ba3e0' }}>Back</Link>
+    </div>
+  )
 
   const typeLabel = getTypeLabel(production)
   const nonMembers = allTeam.filter(m => !members.find(pm => pm.user_id === m.id))
@@ -234,7 +260,9 @@ export default function ProductionDetailPage() {
     <div style={{ maxWidth: '900px', margin: '0 auto' }}>
 
       <Link href="/dashboard/productions" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: muted, fontSize: '13px', textDecoration: 'none', marginBottom: '16px', minHeight: '40px' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
         Productions
       </Link>
 
@@ -254,7 +282,9 @@ export default function ProductionDetailPage() {
             {production.organizer_name && (
               <p style={{ fontSize: '13px', color: muted, margin: 0 }}>
                 {production.organizer_name}
-                {production.organizer_email && <> · <a href={`mailto:${production.organizer_email}`} style={{ color: '#5ba3e0', textDecoration: 'none' }}>{production.organizer_email}</a></>}
+                {production.organizer_email && (
+                  <> · <a href={`mailto:${production.organizer_email}`} style={{ color: '#5ba3e0', textDecoration: 'none' }}>{production.organizer_email}</a></>
+                )}
               </p>
             )}
           </div>
@@ -269,23 +299,28 @@ export default function ProductionDetailPage() {
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '12px', padding: '10px 14px', background: cardBg, borderRadius: '10px', border: `0.5px solid ${border}` }}>
           {production.start_datetime && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: muted }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
               <span style={{ color: text }}>{formatDateTime(production.start_datetime)}</span>
             </div>
           )}
           {production.filming_location && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: muted }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>
               <span style={{ color: text }}>{getSchoolName(production.filming_location)}</span>
             </div>
           )}
           {production.livestream_url && (
             <a href={production.livestream_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#5ba3e0', textDecoration: 'none' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+              </svg>
               Livestream link
             </a>
           )}
-          {/* Team member avatars */}
           {members.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
               {members.slice(0, 4).map((m, i) => m.team && (
@@ -311,13 +346,18 @@ export default function ProductionDetailPage() {
       {/* CHECKLIST TAB */}
       {activeTab === 'checklist' && (
         <div>
-          {/* Create task button */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-            <button onClick={() => setShowCreateTask(!showCreateTask)} style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <button
+              onClick={() => setShowCreateTask(!showCreateTask)}
+              style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
               Create task for this production
             </button>
           </div>
+
           {showCreateTask && (
             <div style={{ background: dark ? 'rgba(255,255,255,0.02)' : '#f8fafc', border: `0.5px solid ${border}`, borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
               <input value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)} placeholder="Task title" style={{ ...inputStyle, marginBottom: '8px' }} />
@@ -335,8 +375,19 @@ export default function ProductionDetailPage() {
                 <input type="date" value={newTaskDue} onChange={e => setNewTaskDue(e.target.value)} style={inputStyle} />
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={createTaskForProduction} disabled={!newTaskTitle} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: newTaskTitle ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: newTaskTitle ? '#fff' : muted, border: 'none', cursor: newTaskTitle ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500 }}>Create task</button>
-                <button onClick={() => setShowCreateTask(false)} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                <button
+                  onClick={createTaskForProduction}
+                  disabled={!newTaskTitle}
+                  style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: newTaskTitle ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: newTaskTitle ? '#fff' : muted, border: 'none', cursor: newTaskTitle ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500 }}
+                >
+                  Create task
+                </button>
+                <button
+                  onClick={() => setShowCreateTask(false)}
+                  style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           )}
@@ -344,7 +395,10 @@ export default function ProductionDetailPage() {
           {checklist.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px', background: cardBg, borderRadius: '12px', border: `0.5px solid ${border}` }}>
               <p style={{ color: muted, fontSize: '14px', marginBottom: '12px' }}>No checklist yet</p>
-              <button onClick={initChecklist} style={{ fontSize: '13px', padding: '8px 20px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+              <button
+                onClick={initChecklist}
+                style={{ fontSize: '13px', padding: '8px 20px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}
+              >
                 Load {typeLabel} template
               </button>
             </div>
@@ -362,13 +416,23 @@ export default function ProductionDetailPage() {
                 <span style={{ fontSize: '12px', color: muted, flexShrink: 0 }}>Assign all to:</span>
                 <div style={{ display: 'flex', gap: '6px', flex: 1, flexWrap: 'wrap' }}>
                   {allTeam.map(member => (
-                    <button key={member.id} onClick={() => setSelectedMember(selectedMember === member.id ? null : member.id)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', border: `0.5px solid ${selectedMember === member.id ? '#22c55e' : border}`, background: selectedMember === member.id ? 'rgba(34,197,94,0.1)' : 'transparent', color: selectedMember === member.id ? '#22c55e' : muted, fontFamily: 'inherit' }}>
-                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 700, color: '#0a0f1e' }}>{member.name.slice(0, 2).toUpperCase()}</div>
+                    <button
+                      key={member.id}
+                      onClick={() => setSelectedMember(selectedMember === member.id ? null : member.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', border: `0.5px solid ${selectedMember === member.id ? '#22c55e' : border}`, background: selectedMember === member.id ? 'rgba(34,197,94,0.1)' : 'transparent', color: selectedMember === member.id ? '#22c55e' : muted, fontFamily: 'inherit' }}
+                    >
+                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 700, color: '#0a0f1e' }}>
+                        {member.name.slice(0, 2).toUpperCase()}
+                      </div>
                       {member.name.split(' ')[0]}
                     </button>
                   ))}
                 </div>
-                <button onClick={massAssign} disabled={!selectedMember} style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '8px', border: 'none', background: selectedMember ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: selectedMember ? '#fff' : muted, cursor: selectedMember ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500, flexShrink: 0 }}>
+                <button
+                  onClick={massAssign}
+                  disabled={!selectedMember}
+                  style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '8px', border: 'none', background: selectedMember ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: selectedMember ? '#fff' : muted, cursor: selectedMember ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500, flexShrink: 0 }}
+                >
                   {assignSuccess ? '✓ Assigned' : 'Assign all'}
                 </button>
               </div>
@@ -378,11 +442,25 @@ export default function ProductionDetailPage() {
                   const assignee = allTeam.find(m => m.id === item.assigned_to)
                   return (
                     <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: i < checklist.length - 1 ? `0.5px solid ${border}` : 'none', background: item.completed ? (dark ? 'rgba(34,197,94,0.04)' : 'rgba(34,197,94,0.03)') : 'transparent' }}>
-                      <button onClick={() => toggleItem(item)} style={{ width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0, border: `1.5px solid ${item.completed ? '#22c55e' : border}`, background: item.completed ? '#22c55e' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {item.completed && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                      <button
+                        onClick={() => toggleItem(item)}
+                        style={{ width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0, border: `1.5px solid ${item.completed ? '#22c55e' : border}`, background: item.completed ? '#22c55e' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {item.completed && (
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        )}
                       </button>
                       <span style={{ flex: 1, fontSize: '13px', color: item.completed ? muted : text, textDecoration: item.completed ? 'line-through' : 'none' }}>{item.title}</span>
-                      <select value={item.assigned_to || ''} onChange={e => { supabase.from('checklist_items').update({ assigned_to: e.target.value || null }).eq('id', item.id); setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, assigned_to: e.target.value || null } : c)) }} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', border: `0.5px solid ${border}`, background: inputBg, color: item.assigned_to ? text : muted, cursor: 'pointer', fontFamily: 'inherit', maxWidth: '110px' }}>
+                      <select
+                        value={item.assigned_to || ''}
+                        onChange={e => {
+                          supabase.from('checklist_items').update({ assigned_to: e.target.value || null }).eq('id', item.id)
+                          setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, assigned_to: e.target.value || null } : c))
+                        }}
+                        style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px', border: `0.5px solid ${border}`, background: inputBg, color: item.assigned_to ? text : muted, cursor: 'pointer', fontFamily: 'inherit', maxWidth: '110px' }}
+                      >
                         <option value="">Unassigned</option>
                         {allTeam.map(m => <option key={m.id} value={m.id}>{m.name.split(' ')[0]}</option>)}
                       </select>
@@ -395,8 +473,19 @@ export default function ProductionDetailPage() {
                   )
                 })}
               </div>
-              <button onClick={async () => { const t = prompt('New step:'); if (!t) return; const { data } = await supabase.from('checklist_items').insert({ production_id: id, title: t, sort_order: checklist.length, completed: false }).select('*').single(); if (data) setChecklist(prev => [...prev, data]) }} style={{ marginTop: '10px', fontSize: '12px', color: muted, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 0' }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+
+              <button
+                onClick={async () => {
+                  const t = prompt('New step:')
+                  if (!t || !uuid) return
+                  const { data } = await supabase.from('checklist_items').insert({ production_id: uuid, title: t, sort_order: checklist.length, completed: false }).select('*').single()
+                  if (data) setChecklist(prev => [...prev, data])
+                }}
+                style={{ marginTop: '10px', fontSize: '12px', color: muted, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 0' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
                 Add step
               </button>
             </div>
@@ -409,7 +498,7 @@ export default function ProductionDetailPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
           <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px' }}>
             <h3 style={{ fontSize: '12px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px' }}>Organizer</h3>
-            {[['Name', production.organizer_name], ['Email', production.organizer_email], ['School', getSchoolName(production.school_department)], ['Year', production.school_year], ['Focus', production.focus_area]].map(([l, v]) => v ? (
+            {([['Name', production.organizer_name], ['Email', production.organizer_email], ['School', getSchoolName(production.school_department)], ['Year', production.school_year], ['Focus', production.focus_area]] as [string, string | null][]).map(([l, v]) => v ? (
               <div key={l} style={{ display: 'flex', gap: '10px', padding: '6px 0', borderBottom: `0.5px solid ${border}`, fontSize: '13px' }}>
                 <span style={{ color: muted, minWidth: '60px' }}>{l}</span>
                 <span style={{ color: text }}>{v}</span>
@@ -418,7 +507,7 @@ export default function ProductionDetailPage() {
           </div>
           <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px' }}>
             <h3 style={{ fontSize: '12px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px' }}>Schedule & location</h3>
-            {[['Start', formatDateTime(production.start_datetime)], ['End', formatDateTime(production.end_datetime)], ['Filming', getSchoolName(production.filming_location)], ['Venue', production.event_location]].map(([l, v]) => v ? (
+            {([['Start', formatDateTime(production.start_datetime)], ['End', formatDateTime(production.end_datetime)], ['Filming', getSchoolName(production.filming_location)], ['Venue', production.event_location]] as [string, string | null][]).map(([l, v]) => v ? (
               <div key={l} style={{ display: 'flex', gap: '10px', padding: '6px 0', borderBottom: `0.5px solid ${border}`, fontSize: '13px' }}>
                 <span style={{ color: muted, minWidth: '60px' }}>{l}</span>
                 <span style={{ color: text }}>{v}</span>
@@ -450,7 +539,10 @@ export default function ProductionDetailPage() {
                     <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0 }}>{m.team.name}</p>
                     <p style={{ fontSize: '12px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{m.team.role}</p>
                   </div>
-                  <button onClick={() => m.team && removeMember(m.user_id, m.team.name)} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '34px' }}>
+                  <button
+                    onClick={() => m.team && removeMember(m.user_id, m.team.name)}
+                    style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '34px' }}
+                  >
                     Remove
                   </button>
                 </div>
@@ -466,13 +558,29 @@ export default function ProductionDetailPage() {
                 {nonMembers.map(m => <option key={m.id} value={m.id}>{m.name} — {m.role}</option>)}
               </select>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={addMember} disabled={!memberToAdd} style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: memberToAdd ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: memberToAdd ? '#fff' : muted, border: 'none', cursor: memberToAdd ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500 }}>Add</button>
-                <button onClick={() => { setAddingMember(false); setMemberToAdd('') }} style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                <button
+                  onClick={addMember}
+                  disabled={!memberToAdd}
+                  style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: memberToAdd ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: memberToAdd ? '#fff' : muted, border: 'none', cursor: memberToAdd ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500 }}
+                >
+                  Add
+                </button>
+                <button
+                  onClick={() => { setAddingMember(false); setMemberToAdd('') }}
+                  style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           ) : nonMembers.length > 0 ? (
-            <button onClick={() => setAddingMember(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#5ba3e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <button
+              onClick={() => setAddingMember(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#5ba3e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
               Add team member
             </button>
           ) : (
@@ -484,16 +592,22 @@ export default function ProductionDetailPage() {
       {/* LINKS TAB */}
       {activeTab === 'links' && (
         <div>
-          {links.length === 0 && !showLinkForm && <p style={{ color: muted, fontSize: '13px', marginBottom: '12px' }}>No links added yet</p>}
+          {links.length === 0 && !showLinkForm && (
+            <p style={{ color: muted, fontSize: '13px', marginBottom: '12px' }}>No links added yet</p>
+          )}
           {links.map(link => (
             <div key={link.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', marginBottom: '8px' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2">
+                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+              </svg>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '13px', color: '#5ba3e0', textDecoration: 'none', fontWeight: 500 }}>{link.title}</a>
                 <p style={{ fontSize: '11px', color: muted, margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{link.url}</p>
               </div>
             </div>
           ))}
+
           {showLinkForm ? (
             <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px', marginBottom: '10px' }}>
               <input value={newLinkTitle} onChange={e => setNewLinkTitle(e.target.value)} placeholder="Link title" style={{ ...inputStyle, marginBottom: '8px' }} />
@@ -505,8 +619,13 @@ export default function ProductionDetailPage() {
             </div>
           ) : (
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button onClick={() => setShowLinkForm(true)} style={{ fontSize: '13px', color: '#5ba3e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <button
+                onClick={() => setShowLinkForm(true)}
+                style={{ fontSize: '13px', color: '#5ba3e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
                 Add link
               </button>
               {kbArticles.length > 0 && (
@@ -516,12 +635,28 @@ export default function ProductionDetailPage() {
                       <option value="">Select KB article...</option>
                       {kbArticles.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
                     </select>
-                    <button onClick={addKBLink} disabled={!selectedKB} style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '8px', background: selectedKB ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: selectedKB ? '#fff' : muted, border: 'none', cursor: selectedKB ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500, minHeight: '40px' }}>Link</button>
-                    <button onClick={() => setShowKBLink(false)} style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}>Cancel</button>
+                    <button
+                      onClick={addKBLink}
+                      disabled={!selectedKB}
+                      style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '8px', background: selectedKB ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: selectedKB ? '#fff' : muted, border: 'none', cursor: selectedKB ? 'pointer' : 'not-allowed', fontFamily: 'inherit', fontWeight: 500, minHeight: '40px' }}
+                    >
+                      Link
+                    </button>
+                    <button
+                      onClick={() => setShowKBLink(false)}
+                      style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 ) : (
-                  <button onClick={() => setShowKBLink(true)} style={{ fontSize: '13px', color: '#9b85e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+                  <button
+                    onClick={() => setShowKBLink(true)}
+                    style={{ fontSize: '13px', color: '#9b85e0', background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontFamily: 'inherit', minHeight: '40px' }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+                    </svg>
                     Link KB article
                   </button>
                 )
@@ -541,12 +676,18 @@ export default function ProductionDetailPage() {
               {activity.map((item, i) => (
                 <div key={item.id} style={{ display: 'flex', gap: '12px', padding: '10px 0', borderBottom: i < activity.length - 1 ? `0.5px solid ${border}` : 'none' }}>
                   <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: '13px', color: text, margin: '0 0 2px' }}><span style={{ fontWeight: 500 }}>{item.team?.name || 'Someone'}</span> {item.action.toLowerCase()}</p>
+                    <p style={{ fontSize: '13px', color: text, margin: '0 0 2px' }}>
+                      <span style={{ fontWeight: 500 }}>{item.team?.name || 'Someone'}</span> {item.action.toLowerCase()}
+                    </p>
                     {item.detail && <p style={{ fontSize: '12px', color: muted, margin: 0 }}>{item.detail}</p>}
-                    <p style={{ fontSize: '11px', color: muted, margin: '3px 0 0' }}>{new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
+                    <p style={{ fontSize: '11px', color: muted, margin: '3px 0 0' }}>
+                      {new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    </p>
                   </div>
                 </div>
               ))}

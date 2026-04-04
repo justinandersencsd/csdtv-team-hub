@@ -44,7 +44,6 @@ export default function ProductionsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
-  const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
   const [view, setView] = useState<'pipeline' | 'list'>('pipeline')
   const searchRef = useRef<HTMLInputElement>(null)
@@ -56,17 +55,40 @@ export default function ProductionsPage() {
   const colBg   = dark ? 'rgba(255,255,255,0.02)' : '#f8fafc'
   const hoverBg = dark ? 'rgba(255,255,255,0.04)' : '#f1f5f9'
 
+  const sortProductions = (data: Production[]): Production[] => {
+    const now = new Date()
+    return [...data].sort((a, b) => {
+      const aDate = a.start_datetime ? new Date(a.start_datetime) : null
+      const bDate = b.start_datetime ? new Date(b.start_datetime) : null
+      const aIsPast = aDate ? aDate < now : false
+      const bIsPast = bDate ? bDate < now : false
+
+      // Both have no date — sort by production number descending
+      if (!aDate && !bDate) return b.production_number - a.production_number
+      // No date goes to bottom
+      if (!aDate) return 1
+      if (!bDate) return -1
+      // Both past — most recent first (so they appear just below upcoming)
+      if (aIsPast && bIsPast) return bDate.getTime() - aDate.getTime()
+      // Both upcoming — soonest first
+      if (!aIsPast && !bIsPast) return aDate.getTime() - bDate.getTime()
+      // Past sinks below upcoming
+      if (aIsPast) return 1
+      return -1
+    })
+  }
+
   const loadData = useCallback(async () => {
     const [prodsRes, teamRes] = await Promise.all([
-      supabase.from('productions').select('*, production_members(user_id, team(name, avatar_color)), checklist_items(completed)').order('production_number', { ascending: false }),
+      supabase.from('productions').select('*, production_members(user_id, team(name, avatar_color)), checklist_items(completed)'),
       supabase.from('team').select('id, name, avatar_color').eq('active', true),
     ])
-    setProductions(prodsRes.data || [])
+    const sorted = sortProductions(prodsRes.data || [])
+    setProductions(sorted)
     setTeam(teamRes.data || [])
-    if (prodsRes.data && prodsRes.data.length > 0) {
-      const latest = prodsRes.data[0].synced_at
-      if (latest) setLastSync(latest)
-    }
+    const latestSync = (prodsRes.data || []).reduce<string | null>((max, p) =>
+      p.synced_at && (!max || p.synced_at > max) ? p.synced_at : max, null)
+    if (latestSync) setLastSync(latestSync)
     setLoading(false)
   }, [supabase])
 
@@ -74,6 +96,7 @@ export default function ProductionsPage() {
 
   const getTypeLabel = (p: Production) => p.request_type_label || p.type || 'Unknown'
   const getTypeColor = (p: Production) => TYPE_COLORS[getTypeLabel(p)] || '#64748b'
+  const isPast = (p: Production) => !!p.start_datetime && new Date(p.start_datetime) < new Date()
 
   const getProgress = (p: Production) => {
     const items = p.checklist_items || []
@@ -99,27 +122,29 @@ export default function ProductionsPage() {
     return matchSearch && matchType
   })
 
-  const pipeline = filtered.filter(p => STATUS_GROUPS.pipeline.includes(p.status || ''))
-  const approved = filtered.filter(p => STATUS_GROUPS.approved.includes(p.status || ''))
-  const other    = filtered.filter(p => STATUS_GROUPS.other.includes(p.status || '') || !p.status || (!STATUS_GROUPS.pipeline.includes(p.status) && !STATUS_GROUPS.approved.includes(p.status)))
-  const inProgress = pipeline.filter(p => p.status === 'In Progress')
+  const pipeline    = filtered.filter(p => STATUS_GROUPS.pipeline.includes(p.status || ''))
+  const approved    = filtered.filter(p => STATUS_GROUPS.approved.includes(p.status || ''))
+  const other       = filtered.filter(p => STATUS_GROUPS.other.includes(p.status || '') || !p.status || (!STATUS_GROUPS.pipeline.includes(p.status) && !STATUS_GROUPS.approved.includes(p.status)))
+  const inProgress  = pipeline.filter(p => p.status === 'In Progress')
   const ideaRequest = pipeline.filter(p => p.status === 'Idea/Request')
 
   const ProductionCard = ({ prod }: { prod: Production }) => {
+    const past      = isPast(prod)
     const typeLabel = getTypeLabel(prod)
     const typeColor = getTypeColor(prod)
-    const progress = getProgress(prod)
-    const members = prod.production_members || []
+    const progress  = getProgress(prod)
+    const members   = prod.production_members || []
 
     return (
-      <Link href={`/dashboard/productions/${prod.id}`} style={{ textDecoration: 'none', display: 'block' }}>
-        <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', cursor: 'pointer', transition: 'all 0.15s', borderLeft: `3px solid ${typeColor}` }}
+      <Link href={`/dashboard/productions/${prod.production_number}`} style={{ textDecoration: 'none', display: 'block', opacity: past ? 0.45 : 1, transition: 'opacity 0.15s' }}>
+        <div
+          style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', cursor: 'pointer', transition: 'all 0.15s', borderLeft: `3px solid ${typeColor}` }}
           onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = hoverBg; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = cardBg; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)' }}
         >
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '11px', color: muted, margin: '0 0 3px' }}>#{prod.production_number}</p>
+              <p style={{ fontSize: '11px', color: muted, margin: '0 0 3px' }}>#{prod.production_number}{past && <span style={{ marginLeft: '6px', fontSize: '10px', color: muted, background: dark ? 'rgba(255,255,255,0.06)' : '#e2e8f0', padding: '1px 6px', borderRadius: '4px' }}>Past</span>}</p>
               <p style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0, lineHeight: 1.3 }}>{prod.title}</p>
             </div>
             {members.length > 0 && (
@@ -153,13 +178,16 @@ export default function ProductionsPage() {
   }
 
   const ProductionRow = ({ prod }: { prod: Production }) => {
+    const past      = isPast(prod)
     const typeLabel = getTypeLabel(prod)
     const typeColor = getTypeColor(prod)
-    const progress = getProgress(prod)
-    const members = prod.production_members || []
+    const progress  = getProgress(prod)
+    const members   = prod.production_members || []
 
     return (
-      <Link href={`/dashboard/productions/${prod.id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 16px', borderBottom: `0.5px solid ${border}`, transition: 'background 0.1s' }}
+      <Link
+        href={`/dashboard/productions/${prod.production_number}`}
+        style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 16px', borderBottom: `0.5px solid ${border}`, transition: 'background 0.1s', opacity: past ? 0.45 : 1 }}
         onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = hoverBg}
         onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
       >
@@ -177,7 +205,12 @@ export default function ProductionsPage() {
             <span style={{ fontSize: '11px', color: muted }}>{progress.pct}%</span>
           </div>
         )}
-        {prod.start_datetime && <span style={{ fontSize: '12px', color: muted, flexShrink: 0 }}>{formatDate(prod.start_datetime)}</span>}
+        {prod.start_datetime && (
+          <span style={{ fontSize: '12px', color: past ? muted : text, flexShrink: 0 }}>
+            {formatDate(prod.start_datetime)}
+            {past && <span style={{ marginLeft: '6px', fontSize: '10px', color: muted, background: dark ? 'rgba(255,255,255,0.06)' : '#e2e8f0', padding: '1px 6px', borderRadius: '4px' }}>Past</span>}
+          </span>
+        )}
         {members.length > 0 && (
           <div style={{ display: 'flex', flexShrink: 0 }}>
             {members.slice(0, 3).map((m, i) => m.team && (
@@ -187,7 +220,9 @@ export default function ProductionsPage() {
             ))}
           </div>
         )}
-        <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '6px', background: prod.status === 'Approved/Scheduled' ? 'rgba(34,197,94,0.12)' : prod.status === 'In Progress' ? 'rgba(245,158,11,0.12)' : prod.status === 'Complete' ? 'rgba(30,108,181,0.12)' : 'rgba(100,116,139,0.12)', color: prod.status === 'Approved/Scheduled' ? '#22c55e' : prod.status === 'In Progress' ? '#f59e0b' : prod.status === 'Complete' ? '#5ba3e0' : muted, flexShrink: 0 }}>{prod.status || 'Unknown'}</span>
+        <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '6px', background: prod.status === 'Approved/Scheduled' ? 'rgba(34,197,94,0.12)' : prod.status === 'In Progress' ? 'rgba(245,158,11,0.12)' : prod.status === 'Complete' ? 'rgba(30,108,181,0.12)' : 'rgba(100,116,139,0.12)', color: prod.status === 'Approved/Scheduled' ? '#22c55e' : prod.status === 'In Progress' ? '#f59e0b' : prod.status === 'Complete' ? '#5ba3e0' : muted, flexShrink: 0 }}>
+          {prod.status || 'Unknown'}
+        </span>
       </Link>
     )
   }
@@ -200,7 +235,11 @@ export default function ProductionsPage() {
     </div>
   )
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading productions...</p></div>
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+      <p style={{ color: muted }}>Loading productions...</p>
+    </div>
+  )
 
   return (
     <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
@@ -209,7 +248,9 @@ export default function ProductionsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '26px', fontWeight: 700, color: text, margin: 0 }}>Productions</h1>
-          <p style={{ fontSize: '14px', color: muted, margin: '3px 0 0' }}>{productions.length} total · {inProgress.length} in progress · {approved.length} approved</p>
+          <p style={{ fontSize: '14px', color: muted, margin: '3px 0 0' }}>
+            {productions.length} total · {inProgress.length} in progress · {approved.length} approved
+          </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '12px', color: muted }}>
@@ -223,33 +264,61 @@ export default function ProductionsPage() {
       {/* Search + filters */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: '200px', display: 'flex', alignItems: 'center', gap: '8px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '10px 14px' }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by title, organizer, type, number..." style={{ background: 'none', border: 'none', outline: 'none', fontSize: '14px', color: text, fontFamily: 'inherit', width: '100%', minHeight: '24px' }} />
-          {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>}
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            ref={searchRef}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by title, organizer, type, number..."
+            style={{ background: 'none', border: 'none', outline: 'none', fontSize: '14px', color: text, fontFamily: 'inherit', width: '100%', minHeight: '24px' }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
+          )}
         </div>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '10px 14px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', minHeight: '44px', cursor: 'pointer' }}>
+        <select
+          value={typeFilter}
+          onChange={e => setTypeFilter(e.target.value)}
+          style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '10px 14px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', minHeight: '44px', cursor: 'pointer' }}
+        >
           <option value="all">All types</option>
           {allTypes.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-        {/* View toggle */}
         <div style={{ display: 'flex', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', overflow: 'hidden' }}>
           {(['pipeline', 'list'] as const).map(v => (
-            <button key={v} onClick={() => setView(v)} style={{ padding: '10px 16px', border: 'none', background: view === v ? '#1e6cb5' : 'transparent', color: view === v ? '#fff' : muted, cursor: 'pointer', fontFamily: 'inherit', fontSize: '14px', fontWeight: view === v ? 500 : 400, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{ padding: '10px 16px', border: 'none', background: view === v ? '#1e6cb5' : 'transparent', color: view === v ? '#fff' : muted, cursor: 'pointer', fontFamily: 'inherit', fontSize: '14px', fontWeight: view === v ? 500 : 400, display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
               {v === 'pipeline' ? (
-                <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="5" height="18"/><rect x="10" y="3" width="5" height="18"/><rect x="17" y="3" width="4" height="18"/></svg> Pipeline</>
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="5" height="18"/><rect x="10" y="3" width="5" height="18"/><rect x="17" y="3" width="4" height="18"/>
+                  </svg>
+                  Pipeline
+                </>
               ) : (
-                <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> List</>
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                  </svg>
+                  List
+                </>
               )}
             </button>
           ))}
         </div>
       </div>
 
-      {/* PIPELINE VIEW — 2 columns */}
+      {/* PIPELINE VIEW */}
       {view === 'pipeline' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'start' }}>
 
-          {/* LEFT COLUMN: Idea/Request + In Progress */}
+          {/* LEFT: In Progress + Idea/Request */}
           <div>
             {inProgress.length > 0 && (
               <div style={{ background: colBg, border: `0.5px solid ${border}`, borderRadius: '14px', padding: '16px', marginBottom: '14px' }}>
@@ -265,7 +334,7 @@ export default function ProductionsPage() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Approved/Scheduled */}
+          {/* RIGHT: Approved/Scheduled */}
           <div>
             <div style={{ background: colBg, border: `0.5px solid ${border}`, borderRadius: '14px', padding: '16px', marginBottom: '14px' }}>
               <ColHeader label="Approved / Scheduled" count={approved.length} color="#22c55e" />
@@ -277,7 +346,11 @@ export default function ProductionsPage() {
               <div style={{ background: colBg, border: `0.5px solid ${border}`, borderRadius: '14px', padding: '16px' }}>
                 <ColHeader label="Complete / Other" count={other.length} color="#5ba3e0" />
                 {other.slice(0, 10).map(p => <ProductionCard key={p.id} prod={p} />)}
-                {other.length > 10 && <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '8px 0 0', margin: 0 }}>{other.length - 10} more — switch to List view to see all</p>}
+                {other.length > 10 && (
+                  <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '8px 0 0', margin: 0 }}>
+                    {other.length - 10} more — switch to List view to see all
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -288,7 +361,9 @@ export default function ProductionsPage() {
       {view === 'list' && (
         <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
           {filtered.length === 0 ? (
-            <p style={{ fontSize: '15px', color: muted, textAlign: 'center', padding: '48px 20px', margin: 0 }}>No productions match your search</p>
+            <p style={{ fontSize: '15px', color: muted, textAlign: 'center', padding: '48px 20px', margin: 0 }}>
+              No productions match your search
+            </p>
           ) : filtered.map(prod => <ProductionRow key={prod.id} prod={prod} />)}
         </div>
       )}
