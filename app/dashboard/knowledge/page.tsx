@@ -58,7 +58,7 @@ export default function KnowledgePage() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
     const [articlesRes, userRes] = await Promise.all([
-      supabase.from('knowledge_base').select('*, author:team(name)').order('updated_at', { ascending: false }),
+      supabase.from('knowledge_base').select('*').order('updated_at', { ascending: false }),
       supabase.from('team').select('*').eq('supabase_user_id', session.user.id).single(),
     ])
     setArticles(articlesRes.data || [])
@@ -71,10 +71,17 @@ export default function KnowledgePage() {
   const saveArticle = async () => {
     if (!form.title || !form.content || !currentUser) return
     if (editing && selected) {
-      const { data } = await supabase.from('knowledge_base').update({ title: form.title, content: form.content, category: form.category, updated_at: new Date().toISOString() }).eq('id', selected.id).select('*, author:team(name)').single()
+      const { data } = await supabase.from('knowledge_base')
+        .update({ title: form.title, content: form.content, category: form.category, updated_at: new Date().toISOString() })
+        .eq('id', selected.id)
+        .select('*')
+        .single()
       if (data) { setArticles(prev => prev.map(a => a.id === data.id ? data : a)); setSelected(data) }
     } else {
-      const { data } = await supabase.from('knowledge_base').insert({ title: form.title, content: form.content, category: form.category, created_by: currentUser.id }).select('*, author:team(name)').single()
+      const { data } = await supabase.from('knowledge_base')
+        .insert({ title: form.title, content: form.content, category: form.category, created_by: currentUser.id })
+        .select('*')
+        .single()
       if (data) { setArticles(prev => [data, ...prev]); setSelected(data); setShowMobileDetail(true) }
     }
     setEditing(false)
