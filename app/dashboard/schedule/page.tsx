@@ -3,121 +3,296 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
+import Link from 'next/link'
 
-interface TeamMember {
-  id: string
-  name: string
-  role: string
-  avatar_color: string
+// ─── Pay periods from PDF ────────────────────────────────────────────────────
+const PAY_PERIODS: { num: number; start: string; end: string; cutoff: string; payday: string }[] = [
+  { num: 1,  start: '2025-06-16', end: '2025-06-29', cutoff: '2025-07-07',  payday: '2025-07-15' },
+  { num: 2,  start: '2025-06-30', end: '2025-07-13', cutoff: '2025-07-23',  payday: '2025-07-31' },
+  { num: 3,  start: '2025-07-14', end: '2025-07-27', cutoff: '2025-08-08',  payday: '2025-08-15' },
+  { num: 4,  start: '2025-07-28', end: '2025-08-10', cutoff: '2025-08-22',  payday: '2025-08-29' },
+  { num: 5,  start: '2025-08-11', end: '2025-08-31', cutoff: '2025-09-08',  payday: '2025-09-15' },
+  { num: 6,  start: '2025-09-01', end: '2025-09-14', cutoff: '2025-09-23',  payday: '2025-09-30' },
+  { num: 7,  start: '2025-09-15', end: '2025-09-28', cutoff: '2025-10-02',  payday: '2025-10-15' },
+  { num: 8,  start: '2025-09-29', end: '2025-10-12', cutoff: '2025-10-29',  payday: '2025-10-31' },
+  { num: 9,  start: '2025-10-13', end: '2025-10-26', cutoff: '2025-11-07',  payday: '2025-11-14' },
+  { num: 10, start: '2025-10-27', end: '2025-11-09', cutoff: '2025-11-21',  payday: '2025-11-28' },
+  { num: 11, start: '2025-11-10', end: '2025-11-23', cutoff: '2025-12-08',  payday: '2025-12-15' },
+  { num: 12, start: '2025-11-24', end: '2025-12-14', cutoff: '2025-12-19',  payday: '2025-12-31' },
+  { num: 13, start: '2025-12-15', end: '2026-01-04', cutoff: '2026-01-08',  payday: '2026-01-15' },
+  { num: 14, start: '2026-01-05', end: '2026-01-18', cutoff: '2026-01-23',  payday: '2026-01-30' },
+  { num: 15, start: '2026-01-19', end: '2026-02-01', cutoff: '2026-02-06',  payday: '2026-02-13' },
+  { num: 16, start: '2026-02-02', end: '2026-02-15', cutoff: '2026-02-20',  payday: '2026-02-27' },
+  { num: 17, start: '2026-02-16', end: '2026-03-01', cutoff: '2026-03-06',  payday: '2026-03-13' },
+  { num: 18, start: '2026-03-02', end: '2026-03-15', cutoff: '2026-03-24',  payday: '2026-03-31' },
+  { num: 19, start: '2026-03-16', end: '2026-03-29', cutoff: '2026-04-03',  payday: '2026-04-15' },
+  { num: 20, start: '2026-03-30', end: '2026-04-19', cutoff: '2026-04-23',  payday: '2026-04-30' },
+  { num: 21, start: '2026-04-20', end: '2026-05-03', cutoff: '2026-05-08',  payday: '2026-05-15' },
+  { num: 22, start: '2026-05-04', end: '2026-05-17', cutoff: '2026-05-21',  payday: '2026-05-29' },
+  { num: 23, start: '2026-05-18', end: '2026-05-31', cutoff: '2026-06-05',  payday: '2026-06-12' },
+  { num: 24, start: '2026-06-01', end: '2026-06-14', cutoff: '2026-06-23',  payday: '2026-06-30' },
+  { num: 1,  start: '2026-06-15', end: '2026-06-28', cutoff: '2026-07-08',  payday: '2026-07-15' },
+  { num: 2,  start: '2026-06-29', end: '2026-07-12', cutoff: '2026-07-23',  payday: '2026-07-31' },
+  { num: 3,  start: '2026-07-13', end: '2026-07-26', cutoff: '2026-08-07',  payday: '2026-08-14' },
+  { num: 4,  start: '2026-07-27', end: '2026-08-09', cutoff: '2026-08-24',  payday: '2026-08-31' },
+]
+
+// ─── Production type colors ───────────────────────────────────────────────────
+const TYPE_COLORS: Record<string, string> = {
+  'Photo Headshots':                          '#e8a020',
+  'Create a Video(Film, Edit, Publish)':      '#5ba3e0',
+  'LiveStream Meeting':                       '#22c55e',
+  'Record Meeting':                           '#9b85e0',
+  'Podcast':                                  '#f97316',
+  'Board Meeting':                            '#ef4444',
+}
+const typeColor = (label: string | null) => TYPE_COLORS[label || ''] || '#64748b'
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const parseHours = (s: string | null | undefined): number => {
+  if (!s || s.toLowerCase() === 'off') return 0
+  const clean = s.toLowerCase().replace(/\s/g, '')
+  const to24 = (t: string): number => {
+    const pm = t.includes('pm')
+    const am = t.includes('am')
+    const num = parseFloat(t.replace(/[apm]/g, ''))
+    const h = Math.floor(num)
+    const m = Math.round((num - h) * 100) / 100
+    if (pm && h !== 12) return h + 12 + m
+    if (am && h === 12) return 0 + m
+    return h + m
+  }
+  const parts = clean.split('-')
+  if (parts.length !== 2) return 8
+  return Math.max(0, to24(parts[1]) - to24(parts[0]))
 }
 
-interface DaySchedule {
-  monday: string | null
-  tuesday: string | null
-  wednesday: string | null
-  thursday: string | null
-  friday: string | null
+const toLocalDateStr = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+const countWeekdays = (start: Date, end: Date): number => {
+  let count = 0
+  const cur = new Date(start)
+  while (cur <= end) {
+    const dow = cur.getDay()
+    if (dow !== 0 && dow !== 6) count++
+    cur.setDate(cur.getDate() + 1)
+  }
+  return count
+}
+
+const getPayPeriodsForMonth = (year: number, month: number) => {
+  const monthStart = new Date(year, month, 1)
+  const monthEnd   = new Date(year, month + 1, 0)
+  return PAY_PERIODS.filter(pp => {
+    const s = new Date(pp.start)
+    const e = new Date(pp.end)
+    return s <= monthEnd && e >= monthStart
+  })
+}
+
+const fmt = (dateStr: string, opts: Intl.DateTimeFormatOptions) =>
+  new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', opts)
+
+const getDayOfWeekKey = (dow: number): keyof DaySchedule => {
+  return (['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const)[dow] as keyof DaySchedule
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+type DaySchedule = {
+  monday: string; tuesday: string; wednesday: string; thursday: string; friday: string
 }
 
 interface ScheduleDefault extends DaySchedule {
-  id: string
-  user_id: string
+  id: string; user_id: string
 }
 
 interface ScheduleOverride extends DaySchedule {
-  id: string
-  user_id: string
-  week_start: string
-  notes: string | null
+  id: string; user_id: string; week_start: string; notes: string | null
 }
 
-const DAYS: (keyof DaySchedule)[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-const DAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-
-function getMonday(d: Date): Date {
-  const date = new Date(d)
-  const day = date.getDay()
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1)
-  date.setDate(diff)
-  date.setHours(0, 0, 0, 0)
-  return date
+interface TeamMember {
+  id: string; name: string; avatar_color: string; role: string
 }
 
-function formatWeek(monday: Date): string {
-  const friday = new Date(monday)
-  friday.setDate(friday.getDate() + 4)
-  return `${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${friday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+interface CurrentUser extends TeamMember { }
+
+interface Production {
+  id: string; title: string; production_number: number
+  request_type_label: string | null; start_datetime: string | null
 }
 
+const DAYS: (keyof DaySchedule)[] = ['monday','tuesday','wednesday','thursday','friday']
+const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri']
+
+const EMPTY_DEFAULT: DaySchedule = { monday:'', tuesday:'', wednesday:'', thursday:'', friday:'' }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function SchedulePage() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
   const supabase = createClient()
 
-  const [team, setTeam] = useState<TeamMember[]>([])
-  const [defaults, setDefaults] = useState<ScheduleDefault[]>([])
-  const [overrides, setOverrides] = useState<ScheduleOverride[]>([])
-  const [currentUser, setCurrentUser] = useState<TeamMember | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [weekOffset, setWeekOffset] = useState(0)
+  const [monthOffset, setMonthOffset] = useState(0)
+  const [currentUser, setCurrentUser]   = useState<CurrentUser | null>(null)
+  const [team, setTeam]                 = useState<TeamMember[]>([])
+  const [viewingId, setViewingId]       = useState<string | null>(null) // whose schedule to show
+  const [defaults, setDefaults]         = useState<ScheduleDefault[]>([])
+  const [overrides, setOverrides]       = useState<ScheduleOverride[]>([])
+  const [productions, setProductions]   = useState<Production[]>([])
+  const [loading, setLoading]           = useState(true)
   const [editingDefault, setEditingDefault] = useState(false)
   const [editingOverride, setEditingOverride] = useState(false)
-  const [myDefault, setMyDefault] = useState<DaySchedule>({ monday: '', tuesday: '', wednesday: '', thursday: '', friday: '' })
-  const [myOverride, setMyOverride] = useState<DaySchedule & { notes: string }>({ monday: '', tuesday: '', wednesday: '', thursday: '', friday: '', notes: '' })
-  const [isMobile, setIsMobile] = useState(false)
+  const [myDefault, setMyDefault]       = useState<DaySchedule>({ ...EMPTY_DEFAULT })
+  const [myOverride, setMyOverride]     = useState<DaySchedule & { notes: string }>({ ...EMPTY_DEFAULT, notes: '' })
+  const [overrideWeek, setOverrideWeek] = useState('') // which week_start to edit
+  const [hoveredProd, setHoveredProd]   = useState<string | null>(null)
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
   const border  = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'
   const cardBg  = dark ? '#0d1525' : '#ffffff'
   const inputBg = dark ? '#0a0f1e' : '#f8f9fc'
+  const gridBg  = dark ? '#060d1a' : '#f8fafc'
+  const wkendBg = dark ? 'rgba(255,255,255,0.015)' : 'rgba(0,0,0,0.025)'
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
+  // ─── Calendar math ──────────────────────────────────────────────────────────
+  const today = new Date()
+  const viewYear  = today.getFullYear() + Math.floor((today.getMonth() + monthOffset) / 12)
+  const viewMonth = ((today.getMonth() + monthOffset) % 12 + 12) % 12
+  const firstOfMonth  = new Date(viewYear, viewMonth, 1)
+  const lastOfMonth   = new Date(viewYear, viewMonth + 1, 0)
+  const startPad      = firstOfMonth.getDay() // 0=Sun
+  const totalCells    = Math.ceil((startPad + lastOfMonth.getDate()) / 7) * 7
 
-  const currentMonday = getMonday(new Date())
-  currentMonday.setDate(currentMonday.getDate() + weekOffset * 7)
-  const weekStr = currentMonday.toISOString().split('T')[0]
+  const calDays: Date[] = []
+  for (let i = 0; i < totalCells; i++) {
+    const d = new Date(firstOfMonth)
+    d.setDate(1 - startPad + i)
+    calDays.push(d)
+  }
 
+  // Compute Monday of any date's week
+  const getMondayStr = (d: Date): string => {
+    const copy = new Date(d)
+    const dow = copy.getDay()
+    const diff = dow === 0 ? -6 : 1 - dow
+    copy.setDate(copy.getDate() + diff)
+    return toLocalDateStr(copy)
+  }
+
+  // ─── Pay period info for viewed month ───────────────────────────────────────
+  const payPeriodsInView = getPayPeriodsForMonth(viewYear, viewMonth)
+  // Show the primary pay period (the one that starts in this month, or first overlap)
+  const primaryPP = payPeriodsInView.find(pp => {
+    const s = new Date(pp.start)
+    return s.getMonth() === viewMonth && s.getFullYear() === viewYear
+  }) || payPeriodsInView[0]
+
+  const ppWeekdays = primaryPP
+    ? countWeekdays(new Date(primaryPP.start), new Date(primaryPP.end))
+    : 0
+
+  // ─── Load data ──────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-    const [teamRes, userRes, defaultsRes, overridesRes] = await Promise.all([
-      supabase.from('team').select('*').eq('active', true),
-      supabase.from('team').select('*').eq('supabase_user_id', session.user.id).single(),
-      supabase.from('schedule_defaults').select('*'),
-      supabase.from('schedule_overrides').select('*').eq('week_start', weekStr),
-    ])
+
+    const userRes = await supabase.from('team').select('*').eq('supabase_user_id', session.user.id).single()
+    const user: CurrentUser = userRes.data
+    setCurrentUser(user)
+
+    const teamRes = await supabase.from('team').select('*').eq('active', true)
     setTeam(teamRes.data || [])
-    setCurrentUser(userRes.data)
-    setDefaults(defaultsRes.data || [])
-    setOverrides(overridesRes.data || [])
-    if (userRes.data) {
-      const def = (defaultsRes.data || []).find((d: ScheduleDefault) => d.user_id === userRes.data.id)
-      if (def) setMyDefault({ monday: def.monday || '', tuesday: def.tuesday || '', wednesday: def.wednesday || '', thursday: def.thursday || '', friday: def.friday || '' })
-      const ov = (overridesRes.data || []).find((o: ScheduleOverride) => o.user_id === userRes.data.id)
-      if (ov) setMyOverride({ monday: ov.monday || '', tuesday: ov.tuesday || '', wednesday: ov.wednesday || '', thursday: ov.thursday || '', friday: ov.friday || '', notes: ov.notes || '' })
-    }
+
+    if (user) setViewingId(v => v || user.id)
     setLoading(false)
-  }, [supabase, weekStr])
+  }, [supabase])
+
+  const loadScheduleData = useCallback(async () => {
+    const targetId = viewingId
+    if (!targetId) return
+
+    // All weeks that touch this month
+    const weekStarts = new Set<string>()
+    calDays.forEach(d => {
+      if (d.getDay() !== 0) weekStarts.add(getMondayStr(d))
+    })
+    const weekArr = Array.from(weekStarts)
+
+    const [defRes, ovRes, prodMembersRes] = await Promise.all([
+      supabase.from('schedule_defaults').select('*').eq('user_id', targetId),
+      supabase.from('schedule_overrides').select('*').eq('user_id', targetId).in('week_start', weekArr),
+      supabase.from('production_members').select('production_id').eq('user_id', targetId),
+    ])
+
+    setDefaults(defRes.data || [])
+    setOverrides(ovRes.data || [])
+
+    // Load productions for this user that fall in the viewed month
+    const prodIds = (prodMembersRes.data || []).map((r: { production_id: string }) => r.production_id)
+    if (prodIds.length > 0) {
+      const monthStartStr = toLocalDateStr(firstOfMonth)
+      const monthEndStr   = toLocalDateStr(lastOfMonth)
+      const prodsRes = await supabase
+        .from('productions')
+        .select('id,title,production_number,request_type_label,start_datetime')
+        .in('id', prodIds)
+        .gte('start_datetime', monthStartStr)
+        .lte('start_datetime', monthEndStr + 'T23:59:59')
+      setProductions(prodsRes.data || [])
+    } else {
+      setProductions([])
+    }
+
+    // Pre-fill edit forms with current user's data
+    const myDef = (defRes.data || []).find((d: ScheduleDefault) => d.user_id === targetId)
+    if (myDef) setMyDefault({ monday: myDef.monday||'', tuesday: myDef.tuesday||'', wednesday: myDef.wednesday||'', thursday: myDef.thursday||'', friday: myDef.friday||'' })
+
+    // Default override week = current week
+    const todayMonday = getMondayStr(new Date())
+    setOverrideWeek(todayMonday)
+    const myOv = (ovRes.data || []).find((o: ScheduleOverride) => o.week_start === todayMonday)
+    if (myOv) setMyOverride({ monday: myOv.monday||'', tuesday: myOv.tuesday||'', wednesday: myOv.wednesday||'', thursday: myOv.thursday||'', friday: myOv.friday||'', notes: myOv.notes||'' })
+    else setMyOverride({ ...EMPTY_DEFAULT, notes: '' })
+  }, [supabase, viewingId, viewYear, viewMonth])
 
   useEffect(() => { loadData() }, [loadData])
+  useEffect(() => { if (viewingId) loadScheduleData() }, [loadScheduleData, viewingId, monthOffset])
 
-  const getScheduleDay = (memberId: string, day: keyof DaySchedule): string | null => {
-    const override = overrides.find(o => o.user_id === memberId)
-    if (override) return override[day]
-    const def = defaults.find(d => d.user_id === memberId)
-    return def ? def[day] : null
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+  const getHoursForDay = (date: Date): string | null => {
+    const dow = date.getDay()
+    if (dow === 0 || dow === 6) return null
+    const dayKey = getDayOfWeekKey(dow) as keyof DaySchedule
+    const weekStart = getMondayStr(date)
+    const override = overrides.find(o => o.week_start === weekStart)
+    if (override && override[dayKey]) return override[dayKey]
+    const def = defaults[0]
+    return def ? (def[dayKey] || null) : null
   }
 
-  const hasOverride = (memberId: string) => overrides.some(o => o.user_id === memberId)
+  const getProdsForDay = (date: Date): Production[] => {
+    const dateStr = toLocalDateStr(date)
+    return productions.filter(p => p.start_datetime?.startsWith(dateStr))
+  }
 
-  const saveDefault = async () => {
+  const isInPayPeriod = (d: Date, pp: typeof primaryPP): boolean => {
+    if (!pp) return false
+    const s = new Date(pp.start)
+    const e = new Date(pp.end)
+    const check = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    s.setHours(0, 0, 0, 0); e.setHours(23, 59, 59, 999)
+    return check >= s && check <= e
+  }
+
+  const isToday = (d: Date) =>
+    d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
+
+  const isCurrentMonth = (d: Date) => d.getMonth() === viewMonth && d.getFullYear() === viewYear
+
+  // ─── Save default ─────────────────────────────────────────────────────────
+  const saveDefault = useCallback(async () => {
     if (!currentUser) return
     const existing = defaults.find(d => d.user_id === currentUser.id)
     if (existing) {
@@ -128,220 +303,318 @@ export default function SchedulePage() {
       if (data) setDefaults(prev => [...prev, data])
     }
     setEditingDefault(false)
-  }
+  }, [currentUser, defaults, myDefault, supabase])
 
-  const saveOverride = async () => {
-    if (!currentUser) return
-    const existing = overrides.find(o => o.user_id === currentUser.id)
+  // ─── Save override ────────────────────────────────────────────────────────
+  const saveOverride = useCallback(async () => {
+    if (!currentUser || !overrideWeek) return
     const { notes, ...days } = myOverride
+    const existing = overrides.find(o => o.user_id === currentUser.id && o.week_start === overrideWeek)
     if (existing) {
       await supabase.from('schedule_overrides').update({ ...days, notes: notes || null }).eq('id', existing.id)
       setOverrides(prev => prev.map(o => o.id === existing.id ? { ...o, ...days, notes: notes || null } : o))
     } else {
-      const { data } = await supabase.from('schedule_overrides').insert({ user_id: currentUser.id, week_start: weekStr, ...days, notes: notes || null }).select().single()
+      const { data } = await supabase.from('schedule_overrides').insert({ user_id: currentUser.id, week_start: overrideWeek, ...days, notes: notes || null }).select().single()
       if (data) setOverrides(prev => [...prev, data])
     }
     setEditingOverride(false)
-  }
+  }, [currentUser, overrides, myOverride, overrideWeek, supabase])
 
+  // ─── Styles ───────────────────────────────────────────────────────────────
   const inputStyle: React.CSSProperties = {
     background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px',
-    padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit',
-    outline: 'none', width: '100%', boxSizing: 'border-box', minHeight: '44px',
+    padding: '8px 12px', fontSize: '14px', color: text, fontFamily: 'inherit',
+    outline: 'none', width: '100%', boxSizing: 'border-box',
   }
 
-  const btnStyle = (primary = false): React.CSSProperties => ({
-    fontSize: '14px', padding: '10px 18px', borderRadius: '10px', minHeight: '44px',
-    background: primary ? '#1e6cb5' : 'transparent',
-    color: primary ? '#fff' : muted,
-    border: primary ? 'none' : `0.5px solid ${border}`,
-    cursor: 'pointer', fontFamily: 'inherit', fontWeight: primary ? 500 : 400,
-  })
+  const isManager = currentUser?.role === 'Manager'
+  const viewingMember = team.find(m => m.id === viewingId)
+  const viewingOwnSchedule = viewingId === currentUser?.id
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        <p style={{ color: muted }}>Loading schedule...</p>
-      </div>
-    )
-  }
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+      <p style={{ color: muted }}>Loading schedule...</p>
+    </div>
+  )
+
+  const monthLabel = firstOfMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   return (
     <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 500, color: text, margin: 0 }}>Schedule</h1>
-          <p style={{ fontSize: '15px', color: muted, margin: '2px 0 0' }}>{formatWeek(currentMonday)}</p>
+          <h1 style={{ fontSize: '26px', fontWeight: 700, color: text, margin: 0 }}>Schedule</h1>
+          <p style={{ fontSize: '14px', color: muted, margin: '2px 0 0' }}>{monthLabel}</p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={() => setWeekOffset(p => p - 1)} style={{ width: '44px', height: '44px', borderRadius: '10px', background: cardBg, border: `0.5px solid ${border}`, color: text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Manager: person switcher */}
+          {isManager && team.length > 1 && (
+            <select
+              value={viewingId || ''}
+              onChange={e => setViewingId(e.target.value)}
+              style={{ ...inputStyle, width: 'auto', minWidth: '140px', padding: '8px 12px' }}
+            >
+              {team.map(m => (
+                <option key={m.id} value={m.id}>{m.id === currentUser?.id ? 'My schedule' : m.name}</option>
+              ))}
+            </select>
+          )}
+          {/* Month nav */}
+          <button onClick={() => setMonthOffset(p => p - 1)} style={{ width: '38px', height: '38px', borderRadius: '8px', background: cardBg, border: `0.5px solid ${border}`, color: text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <button onClick={() => setWeekOffset(0)} style={{ fontSize: '15px', padding: '0 16px', height: '44px', borderRadius: '10px', background: cardBg, border: `0.5px solid ${border}`, color: weekOffset === 0 ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit', fontWeight: weekOffset === 0 ? 600 : 400 }}>
-            This week
+          <button onClick={() => setMonthOffset(0)} style={{ fontSize: '13px', padding: '0 14px', height: '38px', borderRadius: '8px', background: cardBg, border: `0.5px solid ${border}`, color: monthOffset === 0 ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit', fontWeight: monthOffset === 0 ? 600 : 400 }}>
+            Today
           </button>
-          <button onClick={() => setWeekOffset(p => p + 1)} style={{ width: '44px', height: '44px', borderRadius: '10px', background: cardBg, border: `0.5px solid ${border}`, color: text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+          <button onClick={() => setMonthOffset(p => p + 1)} style={{ width: '38px', height: '38px', borderRadius: '8px', background: cardBg, border: `0.5px solid ${border}`, color: text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
       </div>
 
-      {/* Schedule grid — desktop table, mobile cards */}
-      {isMobile ? (
-        /* Mobile: Show each person as a card with their week */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-          {team.map(member => (
-            <div key={member.id} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderBottom: `0.5px solid ${border}` }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>
-                  {member.name.slice(0, 2).toUpperCase()}
+      {/* ── Pay period banner ── */}
+      {primaryPP && (
+        <div style={{ background: dark ? 'rgba(30,108,181,0.12)' : 'rgba(30,108,181,0.07)', border: `0.5px solid rgba(30,108,181,0.25)`, borderRadius: '10px', padding: '10px 16px', marginBottom: '16px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 20px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: '#5ba3e0' }}>Pay Period {primaryPP.num}</span>
+          <span style={{ fontSize: '13px', color: muted }}>
+            {fmt(primaryPP.start, { month: 'short', day: 'numeric' })} – {fmt(primaryPP.end, { month: 'short', day: 'numeric' })}
+          </span>
+          <span style={{ fontSize: '13px', color: text, fontWeight: 500 }}>{ppWeekdays} weekdays</span>
+          <span style={{ width: '1px', height: '14px', background: border, flexShrink: 0 }} />
+          <span style={{ fontSize: '13px', color: muted }}>Cutoff <strong style={{ color: text }}>{fmt(primaryPP.cutoff, { month: 'short', day: 'numeric' })}</strong></span>
+          <span style={{ fontSize: '13px', color: muted }}>Payday <strong style={{ color: '#22c55e' }}>{fmt(primaryPP.payday, { month: 'short', day: 'numeric' })}</strong></span>
+          {payPeriodsInView.length > 1 && (
+            <span style={{ fontSize: '12px', color: muted, marginLeft: 'auto' }}>+{payPeriodsInView.length - 1} more period{payPeriodsInView.length > 2 ? 's' : ''} this month</span>
+          )}
+        </div>
+      )}
+
+      {/* ── Calendar ── */}
+      <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
+        {/* Day-of-week headers */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: `0.5px solid ${border}` }}>
+          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, i) => (
+            <div key={d} style={{ padding: '10px 0', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: (i === 0 || i === 6) ? (dark ? 'rgba(136,153,187,0.5)' : 'rgba(107,114,128,0.5)') : muted, letterSpacing: '0.5px', textTransform: 'uppercase' as const, background: (i === 0 || i === 6) ? wkendBg : 'transparent' }}>
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+          {calDays.map((day, idx) => {
+            const dow = day.getDay()
+            const isWeekend = dow === 0 || dow === 6
+            const inMonth = isCurrentMonth(day)
+            const todayCell = isToday(day)
+            const inPP = primaryPP ? isInPayPeriod(day, primaryPP) : false
+            const hours = !isWeekend ? getHoursForDay(day) : null
+            const dayProds = getProdsForDay(day)
+            const isLastRow = idx >= totalCells - 7
+            const isLastCol = dow === 6
+
+            return (
+              <div
+                key={idx}
+                style={{
+                  minHeight: '90px',
+                  padding: '6px 7px',
+                  borderRight: isLastCol ? 'none' : `0.5px solid ${border}`,
+                  borderBottom: isLastRow ? 'none' : `0.5px solid ${border}`,
+                  background: isWeekend ? wkendBg : inPP && inMonth ? (dark ? 'rgba(30,108,181,0.04)' : 'rgba(30,108,181,0.025)') : 'transparent',
+                  position: 'relative' as const,
+                  opacity: inMonth ? 1 : 0.3,
+                }}
+              >
+                {/* Day number */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{
+                    fontSize: '13px', fontWeight: todayCell ? 700 : 400,
+                    color: todayCell ? '#fff' : isWeekend ? (dark ? 'rgba(136,153,187,0.5)' : 'rgba(107,114,128,0.5)') : text,
+                    background: todayCell ? '#1e6cb5' : 'transparent',
+                    width: '22px', height: '22px', borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    {day.getDate()}
+                  </span>
+                  {/* Hours badge */}
+                  {hours && inMonth && (
+                    <span style={{ fontSize: '10px', fontWeight: 500, color: '#5ba3e0', background: dark ? 'rgba(30,108,181,0.18)' : 'rgba(30,108,181,0.1)', borderRadius: '4px', padding: '1px 5px', whiteSpace: 'nowrap' as const }}>
+                      {hours.replace(/\s/g, '')}
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0 }}>{member.name}</p>
-                  <p style={{ fontSize: '13px', color: muted, margin: 0, textTransform: 'capitalize' as const }}>{member.role}{hasOverride(member.id) ? ' · Modified this week' : ''}</p>
-                </div>
-              </div>
-              <div>
-                {DAYS.map((day, i) => {
-                  const val = getScheduleDay(member.id, day)
+
+                {/* Production chips */}
+                {dayProds.map(prod => {
+                  const color = typeColor(prod.request_type_label)
+                  const startTime = prod.start_datetime
+                    ? new Date(prod.start_datetime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                    : null
+                  const isHovered = hoveredProd === prod.id
                   return (
-                    <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: i < DAYS.length - 1 ? `0.5px solid ${border}` : 'none' }}>
-                      <span style={{ fontSize: '15px', color: muted, minWidth: '40px' }}>{DAY_LABELS[i]}</span>
-                      {val ? (
-                        <span style={{ fontSize: '15px', fontWeight: 500, padding: '4px 12px', borderRadius: '8px', background: `${member.avatar_color}20`, color: member.avatar_color }}>{val}</span>
-                      ) : (
-                        <span style={{ fontSize: '14px', color: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.2)' }}>Off / Not set</span>
+                    <div key={prod.id} style={{ position: 'relative' as const, marginBottom: '2px' }}>
+                      <Link
+                        href={`/dashboard/productions/${prod.production_number}`}
+                        onMouseEnter={() => setHoveredProd(prod.id)}
+                        onMouseLeave={() => setHoveredProd(null)}
+                        style={{
+                          display: 'block', fontSize: '10px', fontWeight: 500,
+                          color: '#fff', background: color,
+                          borderRadius: '4px', padding: '2px 5px',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
+                          textDecoration: 'none', lineHeight: 1.4,
+                        }}
+                      >
+                        {prod.title.length > 18 ? prod.title.slice(0, 17) + '…' : prod.title}
+                      </Link>
+                      {/* Tooltip */}
+                      {isHovered && (
+                        <div style={{
+                          position: 'absolute' as const, bottom: '100%', left: 0, zIndex: 50,
+                          background: dark ? '#1a2540' : '#fff',
+                          border: `0.5px solid ${border}`, borderRadius: '8px',
+                          padding: '8px 10px', minWidth: '160px', maxWidth: '220px',
+                          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                          pointerEvents: 'none' as const,
+                          marginBottom: '4px',
+                        }}>
+                          <p style={{ fontSize: '12px', fontWeight: 600, color: text, margin: '0 0 3px' }}>{prod.title}</p>
+                          {prod.request_type_label && <p style={{ fontSize: '11px', color: muted, margin: '0 0 2px' }}>{prod.request_type_label}</p>}
+                          {startTime && <p style={{ fontSize: '11px', color: '#5ba3e0', margin: 0, fontWeight: 500 }}>🕐 {startTime}</p>}
+                        </div>
                       )}
                     </div>
                   )
                 })}
               </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        /* Desktop: Grid */
-        <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden', marginBottom: '20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '160px repeat(5, 1fr)', borderBottom: `0.5px solid ${border}` }}>
-            <div style={{ padding: '12px 14px', fontSize: '13px', color: muted, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.5px', background: dark ? 'rgba(255,255,255,0.02)' : '#f8f9fc' }}>Person</div>
-            {DAY_FULL.map((d, i) => (
-              <div key={d} style={{ padding: '12px 8px', fontSize: '13px', color: muted, fontWeight: 600, textAlign: 'center' as const, textTransform: 'uppercase' as const, letterSpacing: '0.5px', background: dark ? 'rgba(255,255,255,0.02)' : '#f8f9fc' }}>{DAY_LABELS[i]}</div>
-            ))}
-          </div>
-          {team.map(member => (
-            <div key={member.id} style={{ display: 'grid', gridTemplateColumns: '160px repeat(5, 1fr)', borderBottom: `0.5px solid ${border}` }}>
-              <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#0a0f1e', flexShrink: 0 }}>
-                  {member.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0 }}>{member.name.split(' ')[0]}</p>
-                  {hasOverride(member.id) && <p style={{ fontSize: '9px', color: '#5ba3e0', margin: 0, fontWeight: 600 }}>MODIFIED</p>}
-                </div>
-              </div>
-              {DAYS.map(day => {
-                const val = getScheduleDay(member.id, day)
-                return (
-                  <div key={day} style={{ padding: '12px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {val ? (
-                      <span style={{ fontSize: '14px', fontWeight: 500, padding: '4px 10px', borderRadius: '8px', background: `${member.avatar_color}22`, color: member.avatar_color, whiteSpace: 'nowrap' as const }}>{val}</span>
-                    ) : (
-                      <span style={{ fontSize: '13px', color: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)' }}>—</span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* My schedule editors */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '14px' }}>
-
-        {/* Default */}
-        <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', padding: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <div>
-              <h3 style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0 }}>My default schedule</h3>
-              <p style={{ fontSize: '14px', color: muted, margin: '2px 0 0' }}>Repeats every week</p>
-            </div>
-            <button onClick={() => setEditingDefault(!editingDefault)} style={{ fontSize: '15px', padding: '8px 14px', borderRadius: '8px', background: editingDefault ? (dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9') : 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}>
-              {editingDefault ? 'Cancel' : 'Edit'}
-            </button>
-          </div>
-          {editingDefault ? (
-            <div>
-              {DAYS.map((day, i) => (
-                <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '15px', color: muted, minWidth: '44px', fontWeight: 500 }}>{DAY_LABELS[i]}</span>
-                  <input value={myDefault[day] || ''} onChange={e => setMyDefault(p => ({ ...p, [day]: e.target.value }))} placeholder="e.g. 9am–5pm or Off" style={inputStyle} />
-                </div>
-              ))}
-              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                <button onClick={saveDefault} style={btnStyle(true)}>Save default</button>
-                <button onClick={() => setEditingDefault(false)} style={btnStyle()}>Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              {DAYS.map((day, i) => {
-                const def = defaults.find(d => d.user_id === currentUser?.id)
-                const val = def ? def[day] : null
-                return (
-                  <div key={day} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `0.5px solid ${border}` }}>
-                    <span style={{ fontSize: '15px', color: muted }}>{DAY_FULL[i]}</span>
-                    <span style={{ fontSize: '15px', fontWeight: val ? 500 : 400, color: val ? text : muted }}>{val || 'Not set'}</span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Override */}
-        <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', padding: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <div>
-              <h3 style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0 }}>This week only</h3>
-              <p style={{ fontSize: '14px', color: muted, margin: '2px 0 0' }}>Override your default</p>
-            </div>
-            <button onClick={() => setEditingOverride(!editingOverride)} style={{ fontSize: '15px', padding: '8px 14px', borderRadius: '8px', background: editingOverride ? (dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9') : 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px' }}>
-              {editingOverride ? 'Cancel' : 'Edit'}
-            </button>
-          </div>
-          {editingOverride ? (
-            <div>
-              {DAYS.map((day, i) => (
-                <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '15px', color: muted, minWidth: '44px', fontWeight: 500 }}>{DAY_LABELS[i]}</span>
-                  <input value={myOverride[day] || ''} onChange={e => setMyOverride(p => ({ ...p, [day]: e.target.value }))} placeholder="e.g. 9am–1pm or Off" style={inputStyle} />
-                </div>
-              ))}
-              <input value={myOverride.notes} onChange={e => setMyOverride(p => ({ ...p, notes: e.target.value }))} placeholder="Notes (e.g. WFH, Conference)" style={{ ...inputStyle, marginTop: '4px', marginBottom: '12px' }} />
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={saveOverride} style={btnStyle(true)}>Save this week</button>
-                <button onClick={() => setEditingOverride(false)} style={btnStyle()}>Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              {DAYS.map((day, i) => {
-                const ov = overrides.find(o => o.user_id === currentUser?.id)
-                const val = ov ? ov[day] : null
-                return (
-                  <div key={day} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: `0.5px solid ${border}` }}>
-                    <span style={{ fontSize: '15px', color: muted }}>{DAY_FULL[i]}</span>
-                    <span style={{ fontSize: '15px', fontWeight: val ? 500 : 400, color: val ? '#5ba3e0' : muted }}>{val || 'Using default'}</span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+            )
+          })}
         </div>
       </div>
+
+      {/* ── Edit sections — only show for the person's own schedule ── */}
+      {viewingOwnSchedule && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px' }}>
+
+          {/* Default schedule */}
+          <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', padding: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div>
+                <p style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0 }}>My default schedule</p>
+                <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>Repeats every week</p>
+              </div>
+              {!editingDefault && (
+                <button onClick={() => setEditingDefault(true)} style={{ fontSize: '13px', color: '#5ba3e0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Edit</button>
+              )}
+            </div>
+            {editingDefault ? (
+              <div>
+                {DAYS.map((day, i) => (
+                  <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '13px', color: muted, width: '80px', flexShrink: 0 }}>{DAY_LABELS[i]}</span>
+                    <input
+                      value={myDefault[day]}
+                      onChange={e => setMyDefault(p => ({ ...p, [day]: e.target.value }))}
+                      placeholder="9am-5pm or off"
+                      style={{ ...inputStyle }}
+                    />
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                  <button onClick={saveDefault} style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Save</button>
+                  <button onClick={() => setEditingDefault(false)} style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {DAYS.map((day, i) => {
+                  const val = defaults[0]?.[day]
+                  return (
+                    <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < 4 ? `0.5px solid ${border}` : 'none' }}>
+                      <span style={{ fontSize: '14px', color: muted }}>{DAY_LABELS[i]}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 500, color: val ? text : muted }}>{val || '—'}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* This week override */}
+          <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', padding: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div>
+                <p style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0 }}>This week only</p>
+                <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>Override your default</p>
+              </div>
+              {!editingOverride && (
+                <button onClick={() => setEditingOverride(true)} style={{ fontSize: '13px', color: '#5ba3e0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Edit</button>
+              )}
+            </div>
+            {editingOverride ? (
+              <div>
+                <div style={{ marginBottom: '10px' }}>
+                  <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Week of</p>
+                  <input
+                    type="date"
+                    value={overrideWeek}
+                    onChange={e => {
+                      setOverrideWeek(e.target.value)
+                      const existing = overrides.find(o => o.week_start === e.target.value)
+                      if (existing) setMyOverride({ monday: existing.monday||'', tuesday: existing.tuesday||'', wednesday: existing.wednesday||'', thursday: existing.thursday||'', friday: existing.friday||'', notes: existing.notes||'' })
+                      else setMyOverride({ ...EMPTY_DEFAULT, notes: '' })
+                    }}
+                    style={inputStyle}
+                  />
+                </div>
+                {DAYS.map((day, i) => (
+                  <div key={day} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '13px', color: muted, width: '80px', flexShrink: 0 }}>{DAY_LABELS[i]}</span>
+                    <input
+                      value={myOverride[day]}
+                      onChange={e => setMyOverride(p => ({ ...p, [day]: e.target.value }))}
+                      placeholder="9am-5pm, off, or leave blank"
+                      style={{ ...inputStyle }}
+                    />
+                  </div>
+                ))}
+                <textarea
+                  value={myOverride.notes}
+                  onChange={e => setMyOverride(p => ({ ...p, notes: e.target.value }))}
+                  placeholder="Notes (optional)"
+                  style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' as const, marginBottom: '10px', marginTop: '4px' }}
+                />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={saveOverride} style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Save</button>
+                  <button onClick={() => setEditingOverride(false)} style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                {DAYS.map((day, i) => {
+                  const weekStart = getMondayStr(new Date())
+                  const override = overrides.find(o => o.week_start === weekStart)
+                  const val = override?.[day]
+                  const defVal = defaults[0]?.[day]
+                  return (
+                    <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < 4 ? `0.5px solid ${border}` : 'none' }}>
+                      <span style={{ fontSize: '14px', color: muted }}>{DAY_LABELS[i]}</span>
+                      {val
+                        ? <span style={{ fontSize: '14px', fontWeight: 500, color: '#f59e0b' }}>{val} <span style={{ fontSize: '11px', color: muted, fontWeight: 400 }}>overridden</span></span>
+                        : <span style={{ fontSize: '14px', color: muted }}>{defVal || 'Using default'}</span>
+                      }
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
