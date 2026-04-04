@@ -78,6 +78,11 @@ export default function ProductionDetailPage() {
   const [newLinkUrl, setNewLinkUrl] = useState('')
   const [showKBLink, setShowKBLink] = useState(false)
   const [selectedKB, setSelectedKB] = useState('')
+  const [showCreateTask, setShowCreateTask] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskAssignee, setNewTaskAssignee] = useState('')
+  const [newTaskDue, setNewTaskDue] = useState('')
+  const [newTaskPriority, setNewTaskPriority] = useState('normal')
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
@@ -111,6 +116,13 @@ export default function ProductionDetailPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
+  const getTypeLabel = (prod: Production) => prod.request_type_label || prod.type || 'Unknown'
+
+  const logActivity = useCallback(async (action: string, detail?: string) => {
+    if (!currentUser) return
+    await supabase.from('production_activity').insert({ production_id: id, user_id: currentUser.id, action, detail: detail || null })
+  }, [currentUser, id, supabase])
+
   const createTaskForProduction = useCallback(async () => {
     if (!newTaskTitle || !currentUser) return
     await supabase.from('tasks').insert({
@@ -122,13 +134,6 @@ export default function ProductionDetailPage() {
     setShowCreateTask(false)
     await logActivity('Created task', newTaskTitle)
   }, [newTaskTitle, newTaskPriority, newTaskAssignee, newTaskDue, currentUser, id, supabase, logActivity])
-
-  const getTypeLabel = (prod: Production) => prod.request_type_label || prod.type || 'Unknown'
-
-  const logActivity = useCallback(async (action: string, detail?: string) => {
-    if (!currentUser) return
-    await supabase.from('production_activity').insert({ production_id: id, user_id: currentUser.id, action, detail: detail || null })
-  }, [currentUser, id, supabase])
 
   const initChecklist = useCallback(async () => {
     if (!production || !currentUser) return
