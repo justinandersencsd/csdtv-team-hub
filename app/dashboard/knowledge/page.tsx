@@ -34,7 +34,7 @@ const STARTER_ARTICLES = [
   { title: 'Equipment checkout policy', category: 'Policy', content: '<p>Rules and procedures for checking out equipment...</p>' },
 ]
 
-const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 
 export default function KnowledgePage() {
   const { theme } = useTheme()
