@@ -109,7 +109,7 @@ export default function OnboardingPage() {
     const user = userRes.data
     setCurrentUser(user)
 
-    if (user?.role === 'Manager') {
+    if (user?.role === 'Manager' || user?.role === 'Staff') {
       // Load all interns and their task counts
       const internsRes = await supabase.from('team').select('*').eq('role', 'Intern').eq('active', true)
       const interns: TeamMember[] = internsRes.data || []
