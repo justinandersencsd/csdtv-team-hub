@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
 import { getSchoolName } from '@/lib/schools'
@@ -35,7 +35,7 @@ const TYPE_COLORS: Record<string, string> = {
   'Other, Unsure, Or Consultation': '#64748b',
 }
 
-export default function ProductionsPage() {
+function ProductionsPageContent() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
   const supabase = createClient()
@@ -389,5 +389,13 @@ export default function ProductionsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function ProductionsPage() {
+  return (
+    <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: '#8899bb' }}>Loading productions...</p></div>}>
+      <ProductionsPageContent />
+    </Suspense>
   )
 }
