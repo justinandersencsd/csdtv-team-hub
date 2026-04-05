@@ -1,0 +1,502 @@
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+import { useTheme } from '@/lib/theme'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
+
+type Category = {
+  id: string
+  name: string
+  parent_id: string | null
+  sort_order: number
+}
+
+type Equipment = {
+  id: string
+  asset_tag: string
+  name: string
+  category_id: string | null
+  subcategory_id: string | null
+  brand: string | null
+  model: string | null
+  serial_number: string | null
+  status: string
+  site: string
+  condition: string
+  notes: string | null
+  photo_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+type Kit = {
+  id: string
+  name: string
+  description: string | null
+  created_by: string | null
+  created_at: string
+  items?: { equipment_id: string; equipment: Equipment }[]
+}
+
+type Loan = {
+  id: string
+  equipment_id: string | null
+  kit_id: string | null
+  borrower_name: string
+  borrower_info: string | null
+  checked_out_by: string
+  checked_out_at: string
+  due_date: string | null
+  checked_in_at: string | null
+  notes: string | null
+  equipment?: Equipment | null
+  kit?: Kit | null
+  checked_out_by_user?: { name: string } | null
+}
+
+type TeamMember = {
+  id: string
+  name: string
+  role: string
+}
+
+export default function EquipmentPage() {
+  const { theme } = useTheme()
+  const dark = theme === 'dark'
+  const router = useRouter()
+  const supabase = createClient()
+
+  const text = dark ? '#f0f4ff' : '#1a1f36'
+  const muted = dark ? '#8899bb' : '#6b7280'
+  const border = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'
+  const cardBg = dark ? '#0d1525' : '#ffffff'
+  const inputBg = dark ? '#0a0f1e' : '#f8f9fc'
+
+  const [tab, setTab] = useState<'items' | 'kits' | 'loans'>('items')
+  const [equipment, setEquipment] = useState<Equipment[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [kits, setKits] = useState<Kit[]>([])
+  const [loans, setLoans] = useState<Loan[]>([])
+  const [user, setUser] = useState<TeamMember | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterSite, setFilterSite] = useState('')
+
+  // Kit form
+  const [showKitForm, setShowKitForm] = useState(false)
+  const [kitName, setKitName] = useState('')
+  const [kitDesc, setKitDesc] = useState('')
+
+  // Checkout modal
+  const [checkoutItem, setCheckoutItem] = useState<Equipment | null>(null)
+  const [borrowerName, setBorrowerName] = useState('')
+  const [borrowerInfo, setBorrowerInfo] = useState('')
+  const [dueDate, setDueDate] = useState('')
+
+  const loadData = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+
+    const { data: userData } = await supabase
+      .from('team')
+      .select('*')
+      .eq('supabase_user_id', session.user.id)
+      .single()
+    if (userData) setUser(userData)
+
+    const [eqRes, catRes, kitRes, loanRes] = await Promise.all([
+      supabase.from('equipment').select('*').order('asset_tag'),
+      supabase.from('equipment_categories').select('*').order('sort_order'),
+      supabase.from('equipment_kits').select('*, items:equipment_kit_items(equipment_id, equipment(*))').order('name'),
+      supabase.from('equipment_loans').select('*, equipment(*), kit:equipment_kits(*), checked_out_by_user:team!equipment_loans_checked_out_by_fkey(name)').is('checked_in_at', null).order('checked_out_at', { ascending: false }),
+    ])
+
+    setEquipment(eqRes.data || [])
+    setCategories(catRes.data || [])
+    setKits(kitRes.data as any || [])
+    setLoans(loanRes.data as any || [])
+    setLoading(false)
+  }, [supabase])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  const topCategories = categories.filter(c => !c.parent_id)
+  const getCategoryName = (id: string | null) => {
+    if (!id) return ''
+    return categories.find(c => c.id === id)?.name || ''
+  }
+
+  const statusColor = (s: string) => {
+    switch (s) {
+      case 'available': return { bg: dark ? '#16382a' : '#dcfce7', text: '#22c55e' }
+      case 'checked_out': return { bg: dark ? '#3b2a15' : '#fef3c7', text: '#f59e0b' }
+      case 'broken': return { bg: dark ? '#3b1515' : '#fee2e2', text: '#ef4444' }
+      case 'maintenance': return { bg: dark ? '#1e2a4a' : '#dbeafe', text: '#3b82f6' }
+      case 'retired': return { bg: dark ? '#1f1f2e' : '#f3f4f6', text: '#6b7280' }
+      default: return { bg: dark ? '#1f1f2e' : '#f3f4f6', text: '#6b7280' }
+    }
+  }
+
+  const filtered = equipment.filter(e => {
+    if (search) {
+      const q = search.toLowerCase()
+      const matches = e.asset_tag.toLowerCase().includes(q) ||
+        e.name.toLowerCase().includes(q) ||
+        (e.brand || '').toLowerCase().includes(q) ||
+        (e.model || '').toLowerCase().includes(q) ||
+        (e.serial_number || '').toLowerCase().includes(q)
+      if (!matches) return false
+    }
+    if (filterCategory && e.category_id !== filterCategory) return false
+    if (filterStatus && e.status !== filterStatus) return false
+    if (filterSite && e.site !== filterSite) return false
+    return true
+  })
+
+  const stats = {
+    total: equipment.length,
+    available: equipment.filter(e => e.status === 'available').length,
+    checkedOut: equipment.filter(e => e.status === 'checked_out').length,
+    broken: equipment.filter(e => e.status === 'broken').length,
+  }
+
+  const isManager = user?.role === 'Manager'
+
+  const handleCheckout = useCallback(async () => {
+    if (!checkoutItem || !borrowerName.trim() || !user) return
+    const { error: loanError } = await supabase.from('equipment_loans').insert({
+      equipment_id: checkoutItem.id,
+      borrower_name: borrowerName.trim(),
+      borrower_info: borrowerInfo.trim() || null,
+      checked_out_by: user.id,
+      due_date: dueDate || null,
+    })
+    if (loanError) { alert('Error: ' + loanError.message); return }
+
+    await supabase.from('equipment').update({ status: 'checked_out' }).eq('id', checkoutItem.id)
+    await supabase.from('equipment_activity').insert({
+      equipment_id: checkoutItem.id,
+      action: 'checked_out',
+      detail: `Checked out to ${borrowerName.trim()}${dueDate ? ` — due ${dueDate}` : ''}`,
+      user_id: user.id,
+    })
+
+    setCheckoutItem(null)
+    setBorrowerName('')
+    setBorrowerInfo('')
+    setDueDate('')
+    loadData()
+  }, [checkoutItem, borrowerName, borrowerInfo, dueDate, user, supabase, loadData])
+
+  const handleCreateKit = useCallback(async () => {
+    if (!kitName.trim() || !user) return
+    const { error } = await supabase.from('equipment_kits').insert({
+      name: kitName.trim(),
+      description: kitDesc.trim() || null,
+      created_by: user.id,
+    })
+    if (error) { alert('Error: ' + error.message); return }
+    setKitName('')
+    setKitDesc('')
+    setShowKitForm(false)
+    loadData()
+  }, [kitName, kitDesc, user, supabase, loadData])
+
+  const handleDeleteKit = useCallback(async (kitId: string) => {
+    if (!confirm('Delete this kit? Items won\'t be deleted, just ungrouped.')) return
+    await supabase.from('equipment_kits').delete().eq('id', kitId)
+    loadData()
+  }, [supabase, loadData])
+
+  const inputStyle: React.CSSProperties = {
+    background: inputBg, border: `0.5px solid ${border}`, borderRadius: '10px',
+    padding: '10px 14px', fontSize: '14px', color: text, fontFamily: 'inherit',
+    outline: 'none', width: '100%', boxSizing: 'border-box' as const, minHeight: '44px',
+  }
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '24px', color: muted, fontSize: '15px' }}>
+        Loading equipment...
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '24px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h1 style={{ fontSize: '26px', fontWeight: 700, color: text, margin: 0 }}>Equipment</h1>
+          <p style={{ fontSize: '14px', color: muted, margin: '4px 0 0' }}>{stats.total} items tracked</p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => router.push('/dashboard/equipment/scan')}
+            style={{
+              background: dark ? '#1a2540' : '#f0f4ff', border: `1px solid ${border}`, borderRadius: '10px',
+              padding: '10px 16px', fontSize: '14px', color: '#5ba3e0', cursor: 'pointer',
+              fontFamily: 'inherit', fontWeight: 600, minHeight: '44px', display: 'flex', alignItems: 'center', gap: '6px',
+            }}
+          >
+            📷 Scan
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+        {[
+          { label: 'Total', value: stats.total, color: '#5ba3e0' },
+          { label: 'Available', value: stats.available, color: '#22c55e' },
+          { label: 'Checked Out', value: stats.checkedOut, color: '#f59e0b' },
+          { label: 'Broken', value: stats.broken, color: '#ef4444' },
+        ].map(s => (
+          <div key={s.label} style={{
+            background: cardBg, borderRadius: '14px', padding: '16px',
+            border: `1px solid ${border}`,
+          }}>
+            <div style={{ fontSize: '13px', color: muted, marginBottom: '4px' }}>{s.label}</div>
+            <div style={{ fontSize: '24px', fontWeight: 700, color: s.color }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: `1px solid ${border}`, paddingBottom: '0' }}>
+        {(['items', 'kits', 'loans'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              background: 'none', border: 'none', borderBottom: tab === t ? '2px solid #5ba3e0' : '2px solid transparent',
+              padding: '10px 18px', fontSize: '14px', fontWeight: tab === t ? 600 : 400,
+              color: tab === t ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit',
+              textTransform: 'capitalize',
+            }}
+          >
+            {t === 'items' ? `Items (${equipment.length})` : t === 'kits' ? `Kits (${kits.length})` : `Active Loans (${loans.length})`}
+          </button>
+        ))}
+      </div>
+
+      {/* Items Tab */}
+      {tab === 'items' && (
+        <div>
+          {/* Search and Filters */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Search by tag, name, brand, model..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ ...inputStyle, maxWidth: '360px', flex: '1 1 200px' }}
+            />
+            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ ...inputStyle, maxWidth: '200px', flex: '0 1 200px' }}>
+              <option value="">All Categories</option>
+              {topCategories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...inputStyle, maxWidth: '160px', flex: '0 1 160px' }}>
+              <option value="">All Statuses</option>
+              <option value="available">Available</option>
+              <option value="checked_out">Checked Out</option>
+              <option value="broken">Broken</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="retired">Retired</option>
+            </select>
+            <select value={filterSite} onChange={e => setFilterSite(e.target.value)} style={{ ...inputStyle, maxWidth: '160px', flex: '0 1 160px' }}>
+              <option value="">All Sites</option>
+              <option value="District Office">District Office</option>
+              <option value="Trailer">Trailer</option>
+              <option value="Van">Van</option>
+            </select>
+          </div>
+
+          {/* Results count */}
+          {(search || filterCategory || filterStatus || filterSite) && (
+            <p style={{ fontSize: '13px', color: muted, marginBottom: '12px' }}>
+              Showing {filtered.length} of {equipment.length} items
+              <button onClick={() => { setSearch(''); setFilterCategory(''); setFilterStatus(''); setFilterSite('') }}
+                style={{ background: 'none', border: 'none', color: '#5ba3e0', cursor: 'pointer', fontSize: '13px', marginLeft: '8px', fontFamily: 'inherit' }}>
+                Clear filters
+              </button>
+            </p>
+          )}
+
+          {/* Equipment table */}
+          <div className="csdtv-equipment-table" style={{ background: cardBg, borderRadius: '14px', border: `1px solid ${border}`, overflow: 'hidden' }}>
+            <div className="csdtv-eq-header" style={{ display: 'grid', gridTemplateColumns: '80px 1fr 140px 160px 110px 90px 60px', padding: '12px 16px', borderBottom: `1px solid ${border}`, fontSize: '12px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              <span>Tag</span><span>Name</span><span>Brand</span><span>Category</span><span>Status</span><span>Site</span><span></span>
+            </div>
+
+            {filtered.length === 0 && (
+              <div style={{ padding: '40px', textAlign: 'center', color: muted, fontSize: '14px' }}>No equipment found</div>
+            )}
+
+            {filtered.map((e, i) => {
+              const sc = statusColor(e.status)
+              return (
+                <div key={e.id} onClick={() => router.push(`/dashboard/equipment/${e.asset_tag}`)} className="csdtv-eq-row" style={{ display: 'grid', gridTemplateColumns: '80px 1fr 140px 160px 110px 90px 60px', padding: '12px 16px', borderBottom: i < filtered.length - 1 ? `1px solid ${border}` : 'none', cursor: 'pointer', alignItems: 'center', fontSize: '14px', color: text, transition: 'background 0.15s' }} onMouseEnter={ev => (ev.currentTarget.style.background = dark ? '#111d33' : '#f0f4ff')} onMouseLeave={ev => (ev.currentTarget.style.background = 'transparent')}>
+                  <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '13px', color: '#5ba3e0' }}>{e.asset_tag}</span>
+                  <span style={{ fontWeight: 500 }}>{e.name}</span>
+                  <span style={{ color: muted, fontSize: '13px' }}>{e.brand || '—'}</span>
+                  <span style={{ color: muted, fontSize: '13px' }}>{getCategoryName(e.category_id)}</span>
+                  <span>
+                    <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, background: sc.bg, color: sc.text }}>{e.status.replace('_', ' ')}</span>
+                  </span>
+                  <span style={{ color: muted, fontSize: '12px' }}>{e.site}</span>
+                  <span>
+                    {e.status === 'available' && (
+                      <button onClick={ev => { ev.stopPropagation(); setCheckoutItem(e) }} style={{ background: '#1e6cb5', border: 'none', borderRadius: '8px', color: '#fff', padding: '4px 10px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>Loan</button>
+                    )}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Kits Tab */}
+      {tab === 'kits' && (
+        <div>
+          {isManager && (
+            <div style={{ marginBottom: '16px' }}>
+              {!showKitForm ? (
+                <button onClick={() => setShowKitForm(true)} style={{ background: '#1e6cb5', border: 'none', borderRadius: '10px', color: '#fff', padding: '10px 20px', fontSize: '14px', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', minHeight: '44px' }}>+ New Kit</button>
+              ) : (
+                <div style={{ background: cardBg, borderRadius: '14px', padding: '20px', border: `1px solid ${border}` }}>
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: text, marginBottom: '12px' }}>Create Kit</div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                    <input placeholder="Kit name (e.g. Interview Kit)" value={kitName} onChange={e => setKitName(e.target.value)} style={{ ...inputStyle, flex: '1 1 250px' }} />
+                    <input placeholder="Description (optional)" value={kitDesc} onChange={e => setKitDesc(e.target.value)} style={{ ...inputStyle, flex: '1 1 250px' }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={handleCreateKit} disabled={!kitName.trim()} style={{ background: kitName.trim() ? '#1e6cb5' : '#333', border: 'none', borderRadius: '10px', color: '#fff', padding: '10px 20px', fontSize: '14px', cursor: kitName.trim() ? 'pointer' : 'default', fontWeight: 600, fontFamily: 'inherit', minHeight: '44px' }}>Create</button>
+                    <button onClick={() => { setShowKitForm(false); setKitName(''); setKitDesc('') }} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: '10px', color: muted, padding: '10px 20px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {kits.length === 0 && (
+            <div style={{ background: cardBg, borderRadius: '14px', padding: '40px', textAlign: 'center', color: muted, border: `1px solid ${border}` }}>No kits created yet. Kits let you group items and check them out together.</div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' }}>
+            {kits.map(kit => {
+              const kitItems = kit.items || []
+              return (
+                <div key={kit.id} style={{ background: cardBg, borderRadius: '14px', padding: '20px', border: `1px solid ${border}`, cursor: 'pointer' }} onClick={() => router.push(`/dashboard/equipment/kits/${kit.id}`)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 600, color: text }}>{kit.name}</div>
+                    {isManager && (
+                      <button onClick={ev => { ev.stopPropagation(); handleDeleteKit(kit.id) }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Delete</button>
+                    )}
+                  </div>
+                  {kit.description && <div style={{ fontSize: '13px', color: muted, marginBottom: '8px' }}>{kit.description}</div>}
+                  <div style={{ fontSize: '13px', color: muted }}>{kitItems.length} item{kitItems.length !== 1 ? 's' : ''}</div>
+                  {kitItems.length > 0 && (
+                    <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {kitItems.slice(0, 5).map((ki: any) => (
+                        <span key={ki.equipment_id} style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', background: dark ? '#111d33' : '#f0f4ff', color: '#5ba3e0', fontWeight: 500 }}>{ki.equipment?.asset_tag} — {ki.equipment?.name}</span>
+                      ))}
+                      {kitItems.length > 5 && <span style={{ fontSize: '11px', color: muted }}>+{kitItems.length - 5} more</span>}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Active Loans Tab */}
+      {tab === 'loans' && (
+        <div>
+          {loans.length === 0 && (
+            <div style={{ background: cardBg, borderRadius: '14px', padding: '40px', textAlign: 'center', color: muted, border: `1px solid ${border}` }}>No items currently checked out.</div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {loans.map(loan => {
+              const isOverdue = loan.due_date && new Date(loan.due_date) < new Date()
+              return (
+                <div key={loan.id} style={{ background: cardBg, borderRadius: '14px', padding: '16px 20px', border: `1px solid ${isOverdue ? '#ef4444' : border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ flex: '1 1 300px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                      {loan.equipment && <span style={{ fontFamily: 'monospace', fontSize: '13px', color: '#5ba3e0', fontWeight: 600 }}>{loan.equipment.asset_tag}</span>}
+                      <span style={{ fontSize: '15px', fontWeight: 500, color: text }}>{loan.equipment?.name || loan.kit?.name || 'Unknown'}</span>
+                      {isOverdue && <span style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, background: dark ? '#3b1515' : '#fee2e2', color: '#ef4444', textTransform: 'uppercase' }}>Overdue</span>}
+                    </div>
+                    <div style={{ fontSize: '13px', color: muted }}>
+                      Loaned to <strong style={{ color: text }}>{loan.borrower_name}</strong>
+                      {loan.borrower_info && ` (${loan.borrower_info})`}
+                      {' · '}by {(loan.checked_out_by_user as any)?.name || 'Unknown'}
+                      {' · '}{new Date(loan.checked_out_at).toLocaleDateString()}
+                      {loan.due_date && <span> · Due {new Date(loan.due_date).toLocaleDateString()}</span>}
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!user) return
+                      if (!confirm(`Check in "${loan.equipment?.name || loan.kit?.name}" from ${loan.borrower_name}?`)) return
+                      await supabase.from('equipment_loans').update({ checked_in_at: new Date().toISOString(), checked_in_by: user.id }).eq('id', loan.id)
+                      if (loan.equipment_id) {
+                        await supabase.from('equipment').update({ status: 'available' }).eq('id', loan.equipment_id)
+                        await supabase.from('equipment_activity').insert({ equipment_id: loan.equipment_id, action: 'checked_in', detail: `Returned by ${loan.borrower_name}`, user_id: user.id })
+                      }
+                      loadData()
+                    }}
+                    style={{ background: '#22c55e', border: 'none', borderRadius: '10px', color: '#fff', padding: '8px 18px', fontSize: '13px', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', minHeight: '40px', whiteSpace: 'nowrap' }}
+                  >Check In</button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Modal */}
+      {checkoutItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
+          <div style={{ background: dark ? '#111827' : '#fff', borderRadius: '16px', padding: '28px', maxWidth: '440px', width: '100%', border: `1px solid ${border}` }}>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: text, marginBottom: '4px' }}>Check Out Equipment</div>
+            <div style={{ fontSize: '13px', color: muted, marginBottom: '20px' }}>{checkoutItem.asset_tag} — {checkoutItem.name}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '13px', color: muted, display: 'block', marginBottom: '4px' }}>Student / Borrower Name *</label>
+                <input value={borrowerName} onChange={e => setBorrowerName(e.target.value)} placeholder="Enter name" style={inputStyle} autoFocus />
+              </div>
+              <div>
+                <label style={{ fontSize: '13px', color: muted, display: 'block', marginBottom: '4px' }}>Additional Info (class, teacher, phone)</label>
+                <input value={borrowerInfo} onChange={e => setBorrowerInfo(e.target.value)} placeholder="Optional" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ fontSize: '13px', color: muted, display: 'block', marginBottom: '4px' }}>Due Date</label>
+                <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={inputStyle} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
+              <button onClick={handleCheckout} disabled={!borrowerName.trim()} style={{ background: borrowerName.trim() ? '#1e6cb5' : '#333', border: 'none', borderRadius: '10px', color: '#fff', padding: '12px 24px', fontSize: '14px', fontWeight: 600, cursor: borrowerName.trim() ? 'pointer' : 'default', fontFamily: 'inherit', flex: 1, minHeight: '44px' }}>Confirm Checkout</button>
+              <button onClick={() => { setCheckoutItem(null); setBorrowerName(''); setBorrowerInfo(''); setDueDate('') }} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: '10px', color: muted, padding: '12px 24px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .csdtv-eq-header { display: none !important; }
+          .csdtv-eq-row { grid-template-columns: 1fr !important; gap: 4px !important; }
+        }
+      `}</style>
+    </div>
+  )
+}
