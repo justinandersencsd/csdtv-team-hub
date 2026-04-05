@@ -15,6 +15,7 @@ const NAV_ITEMS = [
     { label: 'Productions', href: '/dashboard/productions', icon: 'video' },
     { label: 'Tasks', href: '/dashboard/tasks', icon: 'check' },
     { label: 'Schedule', href: '/dashboard/schedule', icon: 'calendar' },
+    { label: 'Equipment', href: '/dashboard/equipment', icon: 'equipment' },
   ]},
   { section: 'Resources', items: [
     { label: 'Knowledge base', href: '/dashboard/knowledge', icon: 'book' },
@@ -35,6 +36,7 @@ const BOTTOM_NAV = [
 ]
 
 const MORE_ITEMS = [
+  { label: 'Equipment', href: '/dashboard/equipment', icon: 'equipment' },
   { label: 'Knowledge base', href: '/dashboard/knowledge', icon: 'book' },
   { label: 'Quick links', href: '/dashboard/links', icon: 'link' },
   { label: 'Onboarding', href: '/dashboard/onboarding', icon: 'star' },
@@ -50,6 +52,7 @@ const PATHS: Record<string, React.ReactNode> = {
   link: <><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></>,
   star: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>,
   settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>,
+  equipment: <><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 3v4M8 3v4M6 11h12M6 15h8"/></>,
   more: <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,
 }
 
