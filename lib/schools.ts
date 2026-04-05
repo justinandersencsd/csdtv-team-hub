@@ -46,6 +46,7 @@ export const SCHOOLS: Record<string, string> = {
   '981': 'Entrada/Community Ed',
   '180': 'Gold Miners Daughter',
   '810': 'Jordan Valley',
+  '840': 'Canyons Transition Academy',
   '011': 'Board of Education',
   '021': 'External Affairs',
   '099': 'CSDtv Studio',

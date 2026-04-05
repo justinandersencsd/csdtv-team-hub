@@ -17,7 +17,7 @@ interface Production {
   filming_location: string | null; event_location: string | null
   additional_notes: string | null; video_description: string | null
   livestream_url: string | null; thumbnail_url: string | null
-  project_lead: string | null; synced_at: string | null
+  project_lead: string | null; synced_at: string | null; team_notes: string | null
 }
 
 interface ChecklistItem {
@@ -84,6 +84,14 @@ export default function ProductionDetailPage() {
   const [newTaskAssignee, setNewTaskAssignee] = useState('')
   const [newTaskDue, setNewTaskDue] = useState('')
   const [newTaskPriority, setNewTaskPriority] = useState('normal')
+  const [teamNotes, setTeamNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailTemplate, setEmailTemplate] = useState('')
+  const [emailBody, setEmailBody] = useState('')
+  const [emailSubject, setEmailSubject] = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
@@ -107,6 +115,7 @@ export default function ProductionDetailPage() {
     const prodUUID = prodRes.data.id
     setProduction(prodRes.data)
     setUuid(prodUUID)
+    setTeamNotes(prodRes.data.team_notes || '')
 
     // All related queries use the UUID as FK
     const [checkRes, membersRes, teamRes, linksRes, actRes, userRes, kbRes] = await Promise.all([
@@ -198,6 +207,85 @@ export default function ProductionDetailPage() {
     await logActivity('Removed team member', memberName)
   }, [uuid, supabase, logActivity])
 
+  // ─── Email templates ─────────────────────────────────────────────────────
+  const EMAIL_TEMPLATES = [
+    { id: 'confirmed', label: 'Production Confirmed', subject: 'CSDtv Production Confirmed — {{title}}' },
+    { id: 'logistics', label: 'Logistics Check-In', subject: 'Quick check-in for {{title}} on {{date}}' },
+    { id: 'expect', label: 'What to Expect', subject: 'What to expect for {{title}} — {{date}}' },
+    { id: 'delivered', label: 'Deliverable Ready', subject: 'Your {{type}} is ready — {{title}}' },
+    { id: 'reschedule', label: 'Reschedule / Change', subject: 'Schedule update for {{title}}' },
+    { id: 'followup', label: 'Follow-Up', subject: 'Following up — {{title}}' },
+  ]
+
+  const fillTemplate = (templateId: string): string => {
+    if (!production) return ''
+    const name = production.organizer_name?.split(' ')[0] || 'there'
+    const title = production.title
+    const type = production.request_type_label || production.type || 'production'
+    const date = production.start_datetime ? new Date(production.start_datetime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'TBD'
+    const venue = production.event_location || getSchoolName(production.filming_location) || 'TBD'
+
+    const templates: Record<string, string> = {
+      confirmed: `Hi ${name},\n\nThis is Justin with CSDtv. We've approved your request and have it on our schedule.\n\nWhat: ${title}\nType: ${type}\nDate: ${date}\nLocation: ${venue}\n\nIf any of those details are wrong or have changed, please let me know as soon as possible so we can adjust.\n\nWe'll follow up closer to the date with setup details and anything we need from your end.\n\nThanks,\nJustin Andersen\nCSDtv Production Office`,
+      logistics: `Hi ${name},\n\nWe're getting ready for your production on ${date} and want to confirm a few things:\n\n- Is the location (${venue}) still confirmed and available?\n- Are there any changes to the schedule or setup we should know about?\n- Is there anything specific you need from us that we haven't discussed?\n\nPlease reply when you get a chance so we can make sure everything goes smoothly.\n\nThanks,\nJustin Andersen\nCSDtv Production Office`,
+      expect: `Hi ${name},\n\nYour production is coming up and here's what to expect from our team:\n\n- We'll arrive approximately 30 minutes before the scheduled start time for setup\n- We'll bring all necessary equipment — no action needed from your end on that\n- We ask that the location (${venue}) be accessible and unlocked when we arrive\n- Please have any participants or subjects ready at the scheduled time\n\nIf anything changes between now and then, just reply to this email.\n\nSee you on ${date}!\n\nJustin Andersen\nCSDtv Production Office`,
+      delivered: `Hi ${name},\n\nYour production is complete and the final deliverable is ready. You can access it here:\n\n[Link will be added here]\n\nIf you need any edits or have questions, just let me know. Otherwise, you're all set.\n\nThanks for working with CSDtv!\n\nJustin Andersen\nCSDtv Production Office`,
+      reschedule: `Hi ${name},\n\nI'm reaching out because we need to make a change to the schedule for your upcoming production.\n\nOriginal date: ${date}\nProduction: ${title}\n\n[Reason and proposed new date will be added here]\n\nPlease reply to confirm the new date works for you, or suggest an alternative.\n\nThanks for your flexibility,\nJustin Andersen\nCSDtv Production Office`,
+      followup: `Hi ${name},\n\nI'm following up on my previous message about your upcoming production:\n\nWhat: ${title}\nDate: ${date}\nLocation: ${venue}\n\nWe want to make sure everything is still on track. Could you reply to confirm, or let me know if anything has changed?\n\nThanks,\nJustin Andersen\nCSDtv Production Office`,
+    }
+    return templates[templateId] || ''
+  }
+
+  const fillSubject = (templateId: string): string => {
+    if (!production) return ''
+    const t = EMAIL_TEMPLATES.find(e => e.id === templateId)
+    if (!t) return ''
+    const date = production.start_datetime ? new Date(production.start_datetime).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBD'
+    return t.subject
+      .replace('{{title}}', production.title)
+      .replace('{{date}}', date)
+      .replace('{{type}}', production.request_type_label || production.type || 'production')
+  }
+
+  const selectTemplate = (templateId: string) => {
+    setEmailTemplate(templateId)
+    setEmailBody(fillTemplate(templateId))
+    setEmailSubject(fillSubject(templateId))
+  }
+
+  const sendOrganizerEmail = useCallback(async () => {
+    if (!production?.organizer_email || !emailBody || !currentUser) return
+    setSendingEmail(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-notification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({
+          type: 'organizer_email',
+          recipientEmail: production.organizer_email,
+          recipientName: production.organizer_name?.split(' ')[0] || '',
+          subject: emailSubject,
+          body: emailBody,
+          actionUrl: '',
+          actionLabel: '',
+        }),
+      })
+      setEmailSent(true)
+      await logActivity('Emailed organizer', `Template: ${EMAIL_TEMPLATES.find(e => e.id === emailTemplate)?.label}`)
+      setTimeout(() => { setShowEmailModal(false); setEmailSent(false); setEmailTemplate(''); setEmailBody(''); setEmailSubject('') }, 2000)
+    } catch { /* non-critical */ }
+    setSendingEmail(false)
+  }, [production, emailBody, emailSubject, emailTemplate, currentUser, supabase, logActivity])
+
+  // ─── Team notes ──────────────────────────────────────────────────────────
+  const saveTeamNotes = useCallback(async () => {
+    if (!uuid) return
+    setSavingNotes(true)
+    await supabase.from('productions').update({ team_notes: teamNotes }).eq('id', uuid)
+    setSavingNotes(false)
+  }, [uuid, teamNotes, supabase])
+
   const addLink = useCallback(async () => {
     if (!newLinkTitle || !newLinkUrl || !currentUser || !uuid) return
     const url = newLinkUrl.startsWith('http') ? newLinkUrl : `https://${newLinkUrl}`
@@ -280,12 +368,21 @@ export default function ProductionDetailPage() {
             </div>
             <h1 style={{ fontSize: '22px', fontWeight: 500, color: text, margin: '0 0 6px' }}>{production.title}</h1>
             {production.organizer_name && (
-              <p style={{ fontSize: '13px', color: muted, margin: 0 }}>
+              <p style={{ fontSize: '13px', color: muted, margin: 0, wordBreak: 'break-all' as const }}>
                 {production.organizer_name}
                 {production.organizer_email && (
                   <> · <a href={`mailto:${production.organizer_email}`} style={{ color: '#5ba3e0', textDecoration: 'none' }}>{production.organizer_email}</a></>
                 )}
               </p>
+            )}
+            {production.organizer_email && (
+              <button
+                onClick={() => setShowEmailModal(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', padding: '5px 12px', borderRadius: '6px', background: 'rgba(30,108,181,0.1)', color: '#5ba3e0', border: '0.5px solid rgba(30,108,181,0.25)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, marginTop: '8px' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,7 12,13 2,7"/></svg>
+                Email organizer
+              </button>
             )}
           </div>
           {production.thumbnail_url && (
@@ -520,6 +617,19 @@ export default function ProductionDetailPage() {
               <p style={{ fontSize: '13px', color: text, lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' as const }}>{production.additional_notes}</p>
             </div>
           )}
+          <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px', gridColumn: '1 / -1' }}>
+            <h3 style={{ fontSize: '12px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 10px' }}>Team notes</h3>
+            <p style={{ fontSize: '11px', color: muted, margin: '0 0 8px' }}>Internal notes — only visible to CSDtv staff</p>
+            <textarea
+              value={teamNotes}
+              onChange={e => setTeamNotes(e.target.value)}
+              placeholder="Add internal notes about this production..."
+              style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' as const, lineHeight: 1.5, marginBottom: '8px' }}
+            />
+            <button onClick={saveTeamNotes} disabled={savingNotes} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: savingNotes ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+              {savingNotes ? 'Saving...' : 'Save notes'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -693,6 +803,50 @@ export default function ProductionDetailPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* EMAIL ORGANIZER MODAL */}
+      {showEmailModal && production && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowEmailModal(false) }}>
+          <div style={{ background: dark ? '#0d1525' : '#fff', border: `0.5px solid ${border}`, borderRadius: '16px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '17px', fontWeight: 600, color: text, margin: 0 }}>Email organizer</h2>
+              <button onClick={() => setShowEmailModal(false)} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
+            </div>
+
+            <p style={{ fontSize: '13px', color: muted, margin: '0 0 12px' }}>
+              To: <strong style={{ color: text }}>{production.organizer_name}</strong> ({production.organizer_email})
+            </p>
+
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
+              {EMAIL_TEMPLATES.map(t => (
+                <button key={t.id} onClick={() => selectTemplate(t.id)} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '6px', border: `0.5px solid ${emailTemplate === t.id ? '#1e6cb5' : border}`, background: emailTemplate === t.id ? 'rgba(30,108,181,0.12)' : cardBg, color: emailTemplate === t.id ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ fontSize: '12px', color: muted, display: 'block', marginBottom: '4px' }}>Subject</label>
+              <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Email subject..." style={{ ...inputStyle }} />
+            </div>
+
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ fontSize: '12px', color: muted, display: 'block', marginBottom: '4px' }}>Message</label>
+              <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder="Pick a template or write your message..." style={{ ...inputStyle, minHeight: '240px', resize: 'vertical' as const, lineHeight: 1.6, whiteSpace: 'pre-wrap' as const }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button onClick={sendOrganizerEmail} disabled={sendingEmail || !emailBody || emailSent} style={{ fontSize: '14px', padding: '10px 20px', borderRadius: '8px', background: emailSent ? '#22c55e' : '#1e6cb5', color: '#fff', border: 'none', cursor: sendingEmail ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+                {emailSent ? '✓ Sent!' : sendingEmail ? 'Sending...' : 'Send email'}
+              </button>
+              <button onClick={() => setShowEmailModal(false)} style={{ fontSize: '14px', padding: '10px 20px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -49,7 +49,7 @@ function ProductionsPageContent() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [lastSync, setLastSync] = useState<string | null>(null)
   const [view, setView] = useState<'pipeline' | 'list'>('pipeline')
-  const [scope, setScope] = useState<'all' | 'mine'>(searchParams.get('scope') === 'mine' ? 'mine' : 'all')
+  const [scope, setScope] = useState<'all' | 'mine' | 'unassigned'>(searchParams.get('scope') === 'mine' ? 'mine' : searchParams.get('scope') === 'unassigned' ? 'unassigned' : 'all')
   const searchRef = useRef<HTMLInputElement>(null)
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
@@ -128,7 +128,7 @@ function ProductionsPageContent() {
       getTypeLabel(p).toLowerCase().includes(search.toLowerCase()) ||
       String(p.production_number).includes(search)
     const matchType = typeFilter === 'all' || getTypeLabel(p) === typeFilter
-    const matchScope = scope === 'all' || (currentUserId && (p.production_members || []).some(m => m.user_id === currentUserId))
+    const matchScope = scope === 'all' || (scope === 'mine' && currentUserId && (p.production_members || []).some(m => m.user_id === currentUserId)) || (scope === 'unassigned' && (p.production_members || []).length === 0)
     return matchSearch && matchType && matchScope
   })
 
@@ -145,19 +145,32 @@ function ProductionsPageContent() {
     const progress  = getProgress(prod)
     const members   = prod.production_members || []
 
+    // Health indicator
+    const noTeam = members.length === 0 && !past
+    const daysUntil = prod.start_datetime ? Math.ceil((new Date(prod.start_datetime).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null
+    const approaching = daysUntil !== null && daysUntil >= 0 && daysUntil <= 7
+    const checklistDone = progress ? progress.pct === 100 : false
+    const needsAttention = noTeam || (approaching && !checklistDone && !past)
+    const healthColor = noTeam ? '#ef4444' : (approaching && !checklistDone) ? '#f59e0b' : (checklistDone ? '#22c55e' : null)
+    const healthTip = noTeam ? 'Nobody assigned' : (approaching && !checklistDone) ? `${daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil} days away`} — checklist incomplete` : checklistDone ? 'Checklist complete' : null
+
     return (
       <Link href={`/dashboard/productions/${prod.production_number}`} style={{ textDecoration: 'none', display: 'block', opacity: past ? 0.45 : 1, transition: 'opacity 0.15s' }}>
         <div
-          style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', cursor: 'pointer', transition: 'all 0.15s', borderLeft: `3px solid ${typeColor}` }}
+          style={{ background: cardBg, border: `0.5px solid ${needsAttention ? (healthColor + '40') : border}`, borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', cursor: 'pointer', transition: 'all 0.15s', borderLeft: `3px solid ${typeColor}` }}
           onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = hoverBg; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = cardBg; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)' }}
         >
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '11px', color: muted, margin: '0 0 3px' }}>#{prod.production_number}{past && <span style={{ marginLeft: '6px', fontSize: '10px', color: muted, background: dark ? 'rgba(255,255,255,0.06)' : '#e2e8f0', padding: '1px 6px', borderRadius: '4px' }}>Past</span>}</p>
+              <p style={{ fontSize: '11px', color: muted, margin: '0 0 3px' }}>
+                #{prod.production_number}
+                {past && <span style={{ marginLeft: '6px', fontSize: '10px', color: muted, background: dark ? 'rgba(255,255,255,0.06)' : '#e2e8f0', padding: '1px 6px', borderRadius: '4px' }}>Past</span>}
+                {healthColor && !past && <span title={healthTip || ''} style={{ marginLeft: '6px', display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: healthColor, verticalAlign: 'middle' }} />}
+              </p>
               <p style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0, lineHeight: 1.3 }}>{prod.title}</p>
             </div>
-            {members.length > 0 && (
+            {members.length > 0 ? (
               <div style={{ display: 'flex', flexShrink: 0 }}>
                 {members.slice(0, 3).map((m, i) => m.team && (
                   <div key={m.user_id} title={m.team.name} style={{ width: '22px', height: '22px', borderRadius: '50%', background: m.team.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 700, color: '#0a0f1e', marginLeft: i > 0 ? '-6px' : 0, border: `2px solid ${cardBg}`, zIndex: members.length - i, position: 'relative' }}>
@@ -165,7 +178,9 @@ function ProductionsPageContent() {
                   </div>
                 ))}
               </div>
-            )}
+            ) : !past ? (
+              <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '5px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontWeight: 500, flexShrink: 0 }}>Unassigned</span>
+            ) : null}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: progress ? '8px' : '0' }}>
@@ -259,7 +274,7 @@ function ProductionsPageContent() {
         <div>
           <h1 style={{ fontSize: '26px', fontWeight: 700, color: text, margin: 0 }}>Productions</h1>
           <p style={{ fontSize: '14px', color: muted, margin: '3px 0 0' }}>
-            {scope === 'mine' ? `${filtered.length} assigned to you` : `${productions.length} total · ${inProgress.length} in progress · ${approved.length} approved`}
+            {scope === 'mine' ? `${filtered.length} assigned to you` : scope === 'unassigned' ? `${filtered.length} with nobody assigned` : `${productions.length} total · ${inProgress.length} in progress · ${approved.length} approved`}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -274,13 +289,13 @@ function ProductionsPageContent() {
       {/* Search + filters */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', overflow: 'hidden' }}>
-          {(['all', 'mine'] as const).map(s => (
+          {(['all', 'mine', 'unassigned'] as const).map(s => (
             <button
               key={s}
               onClick={() => setScope(s)}
               style={{ padding: '10px 16px', border: 'none', background: scope === s ? '#1e6cb5' : 'transparent', color: scope === s ? '#fff' : muted, cursor: 'pointer', fontFamily: 'inherit', fontSize: '14px', fontWeight: scope === s ? 500 : 400 }}
             >
-              {s === 'all' ? 'All' : 'Mine'}
+              {s === 'all' ? 'All' : s === 'mine' ? 'Mine' : 'Unassigned'}
             </button>
           ))}
         </div>
