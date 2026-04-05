@@ -194,10 +194,7 @@ export default function QuickLinksPage() {
                       </div>
                     </a>
                     {isManager && (
-                      <button onClick={() => deleteLink(link.id)} style={{ position: 'absolute', top: '8px', right: '44px', background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.15s' }}
-                        onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.opacity = '1'}
-                        onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.opacity = '0'}
-                      >
+                      <button onClick={() => { if (confirm('Delete this link?')) deleteLink(link.id) }} style={{ position: 'absolute', top: '8px', right: '44px', background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
                     )}

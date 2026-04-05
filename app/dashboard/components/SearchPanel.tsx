@@ -42,12 +42,12 @@ export default function SearchPanel({ onClose }: Props) {
     if (q.length < 2) { setResults([]); return }
     setLoading(true)
     const [prodsRes, tasksRes, kbRes] = await Promise.all([
-      supabase.from('productions').select('id, title, request_type_label, organizer_name').ilike('title', `%${q}%`).limit(5),
+      supabase.from('productions').select('id, title, production_number, request_type_label, organizer_name').ilike('title', `%${q}%`).limit(5),
       supabase.from('tasks').select('id, title, status').ilike('title', `%${q}%`).neq('status', 'complete').limit(5),
       supabase.from('knowledge_base').select('id, title, category').ilike('title', `%${q}%`).limit(5),
     ])
     const combined: SearchResult[] = [
-      ...(prodsRes.data || []).map(p => ({ id: p.id, title: p.title, type: 'production' as const, subtitle: p.request_type_label || p.organizer_name, href: `/dashboard/productions/${p.id}` })),
+      ...(prodsRes.data || []).map(p => ({ id: p.id, title: p.title, type: 'production' as const, subtitle: p.request_type_label || p.organizer_name, href: `/dashboard/productions/${p.production_number}` })),
       ...(tasksRes.data || []).map(t => ({ id: t.id, title: t.title, type: 'task' as const, subtitle: t.status, href: `/dashboard/tasks` })),
       ...(kbRes.data || []).map(k => ({ id: k.id, title: k.title, type: 'knowledge' as const, subtitle: k.category, href: `/dashboard/knowledge` })),
     ]

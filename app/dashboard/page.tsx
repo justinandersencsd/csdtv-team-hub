@@ -150,7 +150,7 @@ export default function DashboardPage() {
           <p style={{ fontSize: '13px', fontWeight: 700, color: '#5ba3e0', margin: '0 0 10px', textTransform: 'uppercase' as const, letterSpacing: '0.8px' }}>🎬 Today's productions</p>
           <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
             {todayProductions.map(p => (
-              <Link key={p.id} href={`/dashboard/productions/${p.id}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+              <Link key={p.id} href={`/dashboard/productions/${p.production_number}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
                 <span style={{ fontSize: '15px', color: muted }}>#{p.production_number}</span>
                 <span style={{ fontSize: '15px', fontWeight: 500, color: text }}>{p.title}</span>
                 <span style={{ fontSize: '14px', color: '#5ba3e0', background: 'rgba(30,108,181,0.12)', padding: '3px 10px', borderRadius: '6px' }}>{p.request_type_label || 'Production'}</span>
@@ -174,17 +174,22 @@ export default function DashboardPage() {
           {/* Metric cards */}
           <div className="metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
             {[
-              { label: 'Open tasks', value: String(myTasks.length), sub: 'assigned to you', hi: false },
-              { label: 'Overdue', value: String(overdueCount), sub: overdueCount === 0 ? 'all on track ✓' : 'need attention', hi: overdueCount > 0, color: '#ef4444' },
-              { label: 'High priority', value: String(urgentCount), sub: urgentCount === 0 ? 'nothing urgent' : 'urgent tasks', hi: urgentCount > 0, color: '#f59e0b' },
-              { label: 'Next due', value: nextDueInfo?.label || '—', sub: nextDue?.title || 'no tasks due', hi: false, valueColor: nextDueInfo?.color },
-              { label: 'My productions', value: String(myProductions.length), sub: 'you are assigned to', hi: false },
-            ].map(({ label, value, sub, hi, color, valueColor }) => (
-              <div key={label} style={{ background: hi ? `${color}12` : metricBg, borderRadius: '16px', padding: '20px 24px', border: `1px solid ${hi ? `${color}35` : border}` }}>
+              { label: 'Open tasks', value: String(myTasks.length), sub: 'assigned to you', hi: false, href: '/dashboard/tasks' },
+              { label: 'Overdue', value: String(overdueCount), sub: overdueCount === 0 ? 'all on track ✓' : 'need attention', hi: overdueCount > 0, color: '#ef4444', href: '/dashboard/tasks' },
+              { label: 'High priority', value: String(urgentCount), sub: urgentCount === 0 ? 'nothing urgent' : 'urgent tasks', hi: urgentCount > 0, color: '#f59e0b', href: '/dashboard/tasks' },
+              { label: 'Next due', value: nextDueInfo?.label || '—', sub: nextDue?.title || 'no tasks due', hi: false, valueColor: nextDueInfo?.color, href: '/dashboard/tasks' },
+              { label: 'My productions', value: String(myProductions.length), sub: 'you are assigned to', hi: false, href: '/dashboard/productions' },
+            ].map(({ label, value, sub, hi, color, valueColor, href }) => (
+              <Link key={label} href={href} style={{ textDecoration: 'none' }}>
+              <div style={{ background: hi ? `${color}12` : metricBg, borderRadius: '16px', padding: '20px 24px', border: `1px solid ${hi ? `${color}35` : border}`, cursor: 'pointer', transition: 'transform 0.15s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'}
+                onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'}
+              >
                 <p style={{ fontSize: '13px', fontWeight: 700, color: hi ? color : muted, margin: '0 0 8px', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>{label}</p>
                 <p style={{ fontSize: '38px', fontWeight: 800, color: valueColor || (hi ? color : text), margin: '0 0 4px', lineHeight: 1 }}>{value}</p>
                 <p style={{ fontSize: '15px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{sub}</p>
               </div>
+              </Link>
             ))}
           </div>
 
@@ -257,7 +262,7 @@ export default function DashboardPage() {
                   const progress = getProgress(prod)
                   const typeLabel = prod.request_type_label || prod.type || 'Unknown'
                   return (
-                    <Link key={prod.id} href={`/dashboard/productions/${prod.id}`} style={{ textDecoration: 'none', display: 'block', padding: '14px 20px', borderBottom: i < myProductions.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.1s' }}
+                    <Link key={prod.id} href={`/dashboard/productions/${prod.production_number}`} style={{ textDecoration: 'none', display: 'block', padding: '14px 20px', borderBottom: i < myProductions.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.1s' }}
                       onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = rowHover}
                       onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
                     >

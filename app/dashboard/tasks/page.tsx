@@ -55,6 +55,7 @@ export default function TasksPage() {
   const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'normal', assigned_to: '', due_date: '', production_id: '', needs_equipment: false })
   const [panelNotes, setPanelNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+  const [search, setSearch] = useState('')
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
@@ -126,6 +127,14 @@ export default function TasksPage() {
     await updateTask(selectedTask.id, { notes: panelNotes })
     setSavingNotes(false)
   }, [selectedTask, panelNotes, updateTask])
+
+  const deleteTask = useCallback(async (id: string) => {
+    if (!confirm('Delete this task? This cannot be undone.')) return
+    await supabase.from('tasks').delete().eq('id', id)
+    setTasks(prev => prev.filter(t => t.id !== id))
+    setCompletedTasks(prev => prev.filter(t => t.id !== id))
+    if (selectedTask?.id === id) closePanel()
+  }, [supabase, selectedTask, closePanel])
 
   // FIX: insert without FK join to avoid 400 error, then attach production from local list
   const createTask = useCallback(async () => {
@@ -201,7 +210,8 @@ export default function TasksPage() {
   const filtered = tasks.filter(t => {
     const matchFilter = filter === 'all' || (filter === 'mine' && t.assigned_to === currentUser?.id) || (filter === 'unassigned' && !t.assigned_to)
     const matchStatus = statusFilter === 'all' || t.status === statusFilter
-    return matchFilter && matchStatus
+    const matchSearch = search === '' || t.title.toLowerCase().includes(search.toLowerCase()) || t.description?.toLowerCase().includes(search.toLowerCase()) || t.productions?.title?.toLowerCase().includes(search.toLowerCase())
+    return matchFilter && matchStatus && matchSearch
   })
 
   const grouped = (): { label: string | null; tasks: Task[] }[] => {
@@ -298,6 +308,11 @@ export default function TasksPage() {
         {/* OPEN TAB */}
         {activeTab === 'open' && (
           <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '8px 14px', marginBottom: '12px' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks..." style={{ background: 'none', border: 'none', outline: 'none', fontSize: '14px', color: text, fontFamily: 'inherit', width: '100%' }} />
+              {search && <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>}
+            </div>
             <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
               <button style={filterBtn(filter === 'all')} onClick={() => setFilter('all')}>All</button>
               <button style={filterBtn(filter === 'mine')} onClick={() => setFilter('mine')}>Mine</button>
@@ -412,7 +427,7 @@ export default function TasksPage() {
             <button onClick={closePanel} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
           </div>
           <div style={{ padding: '18px' }}>
-            <p style={{ fontSize: '17px', fontWeight: 600, color: text, margin: '0 0 18px', lineHeight: 1.3 }}>{selectedTask.title}</p>
+            <input value={selectedTask.title} onChange={e => updateTask(selectedTask.id, { title: e.target.value })} style={{ fontSize: '17px', fontWeight: 600, color: text, margin: '0 0 18px', lineHeight: 1.3, background: 'transparent', border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 10px', width: '100%', boxSizing: 'border-box' as const, fontFamily: 'inherit', outline: 'none' }} />
 
             {selectedTask.productions && (
               <div style={{ background: dark ? 'rgba(91,163,224,0.08)' : 'rgba(30,108,181,0.06)', border: '0.5px solid rgba(30,108,181,0.2)', borderRadius: '10px', padding: '13px', marginBottom: '18px' }}>
@@ -460,15 +475,18 @@ export default function TasksPage() {
               <input type="date" value={selectedTask.due_date || ''} onChange={e => updateTask(selectedTask.id, { due_date: e.target.value || null })} style={{ ...inputStyle, fontSize: '14px' }} />
             </div>
 
-            {!selectedTask.productions && (
-              <div style={{ marginBottom: '14px' }}>
-                <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Link to production</p>
-                <select value={selectedTask.production_id || ''} onChange={e => updateTask(selectedTask.id, { production_id: e.target.value || null })} style={{ ...inputStyle, fontSize: '14px' }}>
-                  <option value="">No production linked</option>
-                  {allProductions.map(p => <option key={p.id} value={p.id}>#{p.production_number} — {p.title}</option>)}
-                </select>
-              </div>
-            )}
+            <div style={{ marginBottom: '14px' }}>
+              <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Link to production</p>
+              <select value={selectedTask.production_id || ''} onChange={e => {
+                const newProdId = e.target.value || null
+                const linkedProd = newProdId ? allProductions.find(p => p.id === newProdId) || null : null
+                updateTask(selectedTask.id, { production_id: newProdId } as Partial<Task>)
+                setSelectedTask(prev => prev ? { ...prev, production_id: newProdId, productions: linkedProd } : prev)
+              }} style={{ ...inputStyle, fontSize: '14px' }}>
+                <option value="">No production linked</option>
+                {allProductions.map(p => <option key={p.id} value={p.id}>#{p.production_number} — {p.title}</option>)}
+              </select>
+            </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px', padding: '11px 13px', background: selectedTask.needs_equipment ? 'rgba(249,115,22,0.1)' : inputBg, borderRadius: '8px', border: `0.5px solid ${selectedTask.needs_equipment ? 'rgba(249,115,22,0.3)' : border}`, cursor: 'pointer' }}
               onClick={() => updateTask(selectedTask.id, { needs_equipment: !selectedTask.needs_equipment })}>
@@ -476,18 +494,22 @@ export default function TasksPage() {
               <span style={{ fontSize: '14px', color: selectedTask.needs_equipment ? '#f97316' : muted, fontWeight: selectedTask.needs_equipment ? 600 : 400 }}>📦 Needs equipment pulled</span>
             </div>
 
-            {selectedTask.description && (
-              <div style={{ marginBottom: '18px' }}>
-                <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Description</p>
-                <p style={{ fontSize: '14px', color: text, margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' as const }}>{selectedTask.description}</p>
-              </div>
-            )}
+            <div style={{ marginBottom: '18px' }}>
+              <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Description</p>
+              <textarea value={selectedTask.description || ''} onChange={e => updateTask(selectedTask.id, { description: e.target.value || null })} placeholder="Add a description..." style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' as const, lineHeight: 1.5 }} />
+            </div>
 
             <div>
               <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Notes</p>
               <textarea value={panelNotes} onChange={e => setPanelNotes(e.target.value)} placeholder="Add internal notes..." style={{ ...inputStyle, minHeight: '90px', resize: 'vertical' as const, lineHeight: 1.5, marginBottom: '8px' }} />
               <button onClick={saveNotes} disabled={savingNotes} style={{ fontSize: '14px', padding: '8px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: savingNotes ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
                 {savingNotes ? 'Saving...' : 'Save notes'}
+              </button>
+            </div>
+
+            <div style={{ borderTop: `0.5px solid ${border}`, paddingTop: '14px', marginTop: '18px' }}>
+              <button onClick={() => deleteTask(selectedTask.id)} style={{ fontSize: '13px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '0.5px solid rgba(239,68,68,0.2)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, width: '100%' }}>
+                Delete task
               </button>
             </div>
           </div>

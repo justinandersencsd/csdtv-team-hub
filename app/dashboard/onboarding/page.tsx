@@ -181,6 +181,19 @@ export default function OnboardingPage() {
     }
   }, [supabase, selectedIntern])
 
+  // ─── Reset onboarding for an intern ─────────────────────────────────────
+  const resetOnboarding = useCallback(async (intern: TeamMember) => {
+    if (!confirm(`Reset all onboarding tasks for ${intern.name}? This will delete all their tasks and progress.`)) return
+    await supabase.from('onboarding_tasks').delete().eq('assigned_to', intern.id)
+    setInternSummaries(prev => prev.map(s =>
+      s.intern.id === intern.id ? { ...s, tasks: [], seeded: false } : s
+    ))
+    if (selectedIntern?.id === intern.id) {
+      setInternTasks([])
+      setSelectedIntern(null)
+    }
+  }, [supabase, selectedIntern])
+
   // ─── Week section component ────────────────────────────────────────────────
   const WeekSection = ({
     weekNum, weekTasks, setFn,
@@ -232,6 +245,9 @@ export default function OnboardingPage() {
       </div>
     )
   }
+
+  // ─── Computed ─────────────────────────────────────────────────────────────
+  const isManager = currentUser?.role === 'Manager'
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
@@ -308,6 +324,11 @@ export default function OnboardingPage() {
               <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#22c55e' : '#1e6cb5', borderRadius: '3px', transition: 'width 0.3s' }} />
             </div>
             <span style={{ fontSize: '14px', color: muted }}>{totalDone} / {internTasks.length}</span>
+            {isManager && (
+              <button onClick={() => resetOnboarding(selectedIntern)} style={{ fontSize: '12px', padding: '5px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '0.5px solid rgba(239,68,68,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                Reset
+              </button>
+            )}
           </div>
         </div>
         {loadingDetail ? (

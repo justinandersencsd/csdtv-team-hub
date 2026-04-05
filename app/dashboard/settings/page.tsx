@@ -92,6 +92,7 @@ export default function SettingsPage() {
 
   const inviteUser = async () => {
     if (!inviteEmail || !currentUser) return
+    if (!confirm(`Add ${inviteEmail} to the team as ${inviteRole}?`)) return
     setInviting(true)
     setInviteResult(null)
 

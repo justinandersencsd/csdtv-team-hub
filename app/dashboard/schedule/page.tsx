@@ -307,6 +307,21 @@ export default function SchedulePage() {
 
   const isCurrentMonth = (d: Date) => d.getMonth() === viewMonth && d.getFullYear() === viewYear
 
+  // ─── Pay period total hours ──────────────────────────────────────────────
+  const ppTotalHours = (() => {
+    if (!primaryPP) return 0
+    let total = 0
+    const cur = new Date(primaryPP.start)
+    const end = new Date(primaryPP.end)
+    end.setHours(23, 59, 59, 999)
+    while (cur <= end) {
+      const h = getHoursForDay(cur)
+      if (h) total += parseHours(h)
+      cur.setDate(cur.getDate() + 1)
+    }
+    return Math.round(total * 10) / 10
+  })()
+
   // ─── Save default ─────────────────────────────────────────────────────────
   const saveDefault = useCallback(async () => {
     if (!currentUser) return
@@ -467,6 +482,8 @@ export default function SchedulePage() {
             {fmt(primaryPP.start, { month: 'short', day: 'numeric' })} – {fmt(primaryPP.end, { month: 'short', day: 'numeric' })}
           </span>
           <span style={{ fontSize: '13px', color: text, fontWeight: 500 }}>{ppWeekdays} weekdays</span>
+          <span style={{ width: '1px', height: '14px', background: border, flexShrink: 0 }} />
+          <span style={{ fontSize: '13px', color: ppTotalHours > 0 ? '#22c55e' : muted, fontWeight: 600 }}>{ppTotalHours}h scheduled</span>
           <span style={{ width: '1px', height: '14px', background: border, flexShrink: 0 }} />
           <span style={{ fontSize: '13px', color: muted }}>Cutoff <strong style={{ color: text }}>{fmt(primaryPP.cutoff, { month: 'short', day: 'numeric' })}</strong></span>
           <span style={{ fontSize: '13px', color: muted }}>Payday <strong style={{ color: '#22c55e' }}>{fmt(primaryPP.payday, { month: 'short', day: 'numeric' })}</strong></span>
