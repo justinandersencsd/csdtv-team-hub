@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
 import { getSchoolName } from '@/lib/schools'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 
 interface Production {
   id: string; production_number: number; title: string
@@ -38,14 +39,17 @@ export default function ProductionsPage() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
   const supabase = createClient()
+  const searchParams = useSearchParams()
 
   const [productions, setProductions] = useState<Production[]>([])
   const [team, setTeam] = useState<TeamMember[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [lastSync, setLastSync] = useState<string | null>(null)
   const [view, setView] = useState<'pipeline' | 'list'>('pipeline')
+  const [scope, setScope] = useState<'all' | 'mine'>(searchParams.get('scope') === 'mine' ? 'mine' : 'all')
   const searchRef = useRef<HTMLInputElement>(null)
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
@@ -79,10 +83,15 @@ export default function ProductionsPage() {
   }
 
   const loadData = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession()
     const [prodsRes, teamRes] = await Promise.all([
       supabase.from('productions').select('*, production_members(user_id, team(name, avatar_color)), checklist_items(completed)'),
       supabase.from('team').select('id, name, avatar_color').eq('active', true),
     ])
+    if (session) {
+      const { data: user } = await supabase.from('team').select('id').eq('supabase_user_id', session.user.id).single()
+      if (user) setCurrentUserId(user.id)
+    }
     const sorted = sortProductions(prodsRes.data || [])
     setProductions(sorted)
     setTeam(teamRes.data || [])
@@ -119,7 +128,8 @@ export default function ProductionsPage() {
       getTypeLabel(p).toLowerCase().includes(search.toLowerCase()) ||
       String(p.production_number).includes(search)
     const matchType = typeFilter === 'all' || getTypeLabel(p) === typeFilter
-    return matchSearch && matchType
+    const matchScope = scope === 'all' || (currentUserId && (p.production_members || []).some(m => m.user_id === currentUserId))
+    return matchSearch && matchType && matchScope
   })
 
   const pipeline    = filtered.filter(p => STATUS_GROUPS.pipeline.includes(p.status || ''))
@@ -249,7 +259,7 @@ export default function ProductionsPage() {
         <div>
           <h1 style={{ fontSize: '26px', fontWeight: 700, color: text, margin: 0 }}>Productions</h1>
           <p style={{ fontSize: '14px', color: muted, margin: '3px 0 0' }}>
-            {productions.length} total · {inProgress.length} in progress · {approved.length} approved
+            {scope === 'mine' ? `${filtered.length} assigned to you` : `${productions.length} total · ${inProgress.length} in progress · ${approved.length} approved`}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -263,6 +273,17 @@ export default function ProductionsPage() {
 
       {/* Search + filters */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', overflow: 'hidden' }}>
+          {(['all', 'mine'] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setScope(s)}
+              style={{ padding: '10px 16px', border: 'none', background: scope === s ? '#1e6cb5' : 'transparent', color: scope === s ? '#fff' : muted, cursor: 'pointer', fontFamily: 'inherit', fontSize: '14px', fontWeight: scope === s ? 500 : 400 }}
+            >
+              {s === 'all' ? 'All' : 'Mine'}
+            </button>
+          ))}
+        </div>
         <div style={{ flex: 1, minWidth: '200px', display: 'flex', alignItems: 'center', gap: '8px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '10px 14px' }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>

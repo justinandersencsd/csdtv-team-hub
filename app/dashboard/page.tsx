@@ -178,7 +178,7 @@ export default function DashboardPage() {
               { label: 'Overdue', value: String(overdueCount), sub: overdueCount === 0 ? 'all on track ✓' : 'need attention', hi: overdueCount > 0, color: '#ef4444', href: '/dashboard/tasks' },
               { label: 'High priority', value: String(urgentCount), sub: urgentCount === 0 ? 'nothing urgent' : 'urgent tasks', hi: urgentCount > 0, color: '#f59e0b', href: '/dashboard/tasks' },
               { label: 'Next due', value: nextDueInfo?.label || '—', sub: nextDue?.title || 'no tasks due', hi: false, valueColor: nextDueInfo?.color, href: '/dashboard/tasks' },
-              { label: 'My productions', value: String(myProductions.length), sub: 'you are assigned to', hi: false, href: '/dashboard/productions' },
+              { label: 'My productions', value: String(myProductions.length), sub: 'you are assigned to', hi: false, href: '/dashboard/productions?scope=mine' },
             ].map(({ label, value, sub, hi, color, valueColor, href }) => (
               <Link key={label} href={href} style={{ textDecoration: 'none' }}>
               <div style={{ background: hi ? `${color}12` : metricBg, borderRadius: '16px', padding: '20px 24px', border: `1px solid ${hi ? `${color}35` : border}`, cursor: 'pointer', transition: 'transform 0.15s' }}
