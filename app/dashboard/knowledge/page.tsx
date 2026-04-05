@@ -51,6 +51,7 @@ export default function KnowledgePage() {
   const [showNew, setShowNew] = useState(false)
   const [form, setForm] = useState({ title: '', category: 'Process' })
   const [showMobileDetail, setShowMobileDetail] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
@@ -86,18 +87,21 @@ export default function KnowledgePage() {
     const htmlContent = editor?.getHTML() || ''
     const isEmpty = htmlContent === '<p></p>' || htmlContent.trim() === ''
     if (!form.title || isEmpty || !currentUser) return
+    setSaveError('')
     if (editing && selected) {
-      const { data } = await supabase.from('knowledge_base')
+      const { data, error } = await supabase.from('knowledge_base')
         .update({ title: form.title, content: htmlContent, category: form.category, updated_at: new Date().toISOString() })
         .eq('id', selected.id)
         .select('*')
         .single()
+      if (error) { setSaveError('Failed to save article. Please try again.'); return }
       if (data) { setArticles(prev => prev.map(a => a.id === data.id ? data : a)); setSelected(data) }
     } else {
-      const { data } = await supabase.from('knowledge_base')
+      const { data, error } = await supabase.from('knowledge_base')
         .insert({ title: form.title, content: htmlContent, category: form.category, created_by: currentUser.id })
         .select('*')
         .single()
+      if (error) { setSaveError('Failed to create article. Please try again.'); return }
       if (data) { setArticles(prev => [data, ...prev]); setSelected(data); setShowMobileDetail(true) }
     }
     setEditing(false)
@@ -178,7 +182,8 @@ export default function KnowledgePage() {
             </div>
             <div style={{ display: 'flex', gap: '8px', margin: '14px 20px 20px' }}>
               <button onClick={saveArticle} style={{ fontSize: '14px', padding: '10px 20px', borderRadius: '10px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, minHeight: '44px' }}>Save article</button>
-              <button onClick={() => { setEditing(false); setShowNew(false) }} style={{ fontSize: '14px', padding: '10px 20px', borderRadius: '10px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>Cancel</button>
+              <button onClick={() => { setEditing(false); setShowNew(false); setSaveError('') }} style={{ fontSize: '14px', padding: '10px 20px', borderRadius: '10px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>Cancel</button>
+              {saveError && <span style={{ fontSize: '13px', color: '#ef4444' }}>{saveError}</span>}
             </div>
           </div>
         ) : selected ? (

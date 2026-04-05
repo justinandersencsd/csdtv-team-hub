@@ -56,6 +56,8 @@ export default function TasksPage() {
   const [panelNotes, setPanelNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
   const [search, setSearch] = useState('')
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
@@ -87,7 +89,7 @@ export default function TasksPage() {
 
   const getMember = (id: string | null) => id ? team.find(m => m.id === id) || null : null
 
-  const openTask = (task: Task) => { setSelectedTask(task); setPanelNotes(task.notes || '') }
+  const openTask = (task: Task) => { setSelectedTask(task); setPanelNotes(task.notes || ''); setEditTitle(task.title); setEditDescription(task.description || '') }
   const closePanel = () => setSelectedTask(null)
 
   const sendAssignEmail = useCallback(async (assigneeId: string, taskTitle: string) => {
@@ -427,7 +429,7 @@ export default function TasksPage() {
             <button onClick={closePanel} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
           </div>
           <div style={{ padding: '18px' }}>
-            <input value={selectedTask.title} onChange={e => updateTask(selectedTask.id, { title: e.target.value })} style={{ fontSize: '17px', fontWeight: 600, color: text, margin: '0 0 18px', lineHeight: 1.3, background: 'transparent', border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 10px', width: '100%', boxSizing: 'border-box' as const, fontFamily: 'inherit', outline: 'none' }} />
+            <input value={editTitle} onChange={e => setEditTitle(e.target.value)} onBlur={() => { if (editTitle !== selectedTask.title) updateTask(selectedTask.id, { title: editTitle }) }} style={{ fontSize: '17px', fontWeight: 600, color: text, margin: '0 0 18px', lineHeight: 1.3, background: 'transparent', border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 10px', width: '100%', boxSizing: 'border-box' as const, fontFamily: 'inherit', outline: 'none' }} />
 
             {selectedTask.productions && (
               <div style={{ background: dark ? 'rgba(91,163,224,0.08)' : 'rgba(30,108,181,0.06)', border: '0.5px solid rgba(30,108,181,0.2)', borderRadius: '10px', padding: '13px', marginBottom: '18px' }}>
@@ -496,7 +498,7 @@ export default function TasksPage() {
 
             <div style={{ marginBottom: '18px' }}>
               <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Description</p>
-              <textarea value={selectedTask.description || ''} onChange={e => updateTask(selectedTask.id, { description: e.target.value || null })} placeholder="Add a description..." style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' as const, lineHeight: 1.5 }} />
+              <textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} onBlur={() => { if (editDescription !== (selectedTask.description || '')) updateTask(selectedTask.id, { description: editDescription || null }) }} placeholder="Add a description..." style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' as const, lineHeight: 1.5 }} />
             </div>
 
             <div>

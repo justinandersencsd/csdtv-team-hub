@@ -89,7 +89,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+      if (!session) { router.push('/login'); return }
 
       // Auto-link supabase_user_id for new users who logged in via magic link
       // Check if there's a team record for this email with no supabase_user_id

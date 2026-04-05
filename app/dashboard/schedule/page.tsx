@@ -418,7 +418,7 @@ export default function SchedulePage() {
     setShowMassFill(false)
     setMassFillValue('')
     setMassFilling(false)
-  }, [currentUser, massFillValue, calDays, overrides, supabase, viewYear, viewMonth])
+  }, [currentUser, massFillValue, overrides, supabase, viewYear, viewMonth])
 
   // ─── Styles ───────────────────────────────────────────────────────────────
   const inputStyle: React.CSSProperties = {

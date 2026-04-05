@@ -10,7 +10,6 @@ export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [magicEmail, setMagicEmail] = useState('')
   const [mode, setMode] = useState<'password' | 'magic'>('password')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -35,7 +34,7 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     const { error } = await supabase.auth.signInWithOtp({
-      email: magicEmail,
+      email,
       options: { emailRedirectTo: `${window.location.origin}/dashboard` }
     })
     if (error) setError(error.message)
@@ -155,8 +154,9 @@ export default function LoginPage() {
               <input
                 type="email"
                 placeholder="you@canyonsdistrict.org"
-                value={magicEmail}
-                onChange={e => setMagicEmail(e.target.value)}
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleMagicLink()}
                 style={{ width: '100%', background: '#1a2540', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px 14px', fontSize: '14px', color: '#f0f4ff', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
               />
             </div>

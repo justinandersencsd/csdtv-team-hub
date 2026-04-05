@@ -289,16 +289,21 @@ export default function DashboardPage() {
         <div>
           <div className="metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
             {[
-              { label: 'Team members', value: String(teamMembers.length), sub: 'active' },
-              { label: 'Open tasks', value: String(allTasks.length), sub: 'across team' },
-              { label: 'High priority', value: String(allTasks.filter(t => t.priority === 'high' || t.priority === 'day of').length), sub: 'team wide' },
-              { label: 'Total productions', value: String(totalProductions), sub: 'in system' },
-            ].map(({ label, value, sub }) => (
-              <div key={label} style={{ background: metricBg, borderRadius: '16px', padding: '20px 24px', border: `1px solid ${border}` }}>
+              { label: 'Team members', value: String(teamMembers.length), sub: 'active', href: '/dashboard/settings' },
+              { label: 'Open tasks', value: String(allTasks.length), sub: 'across team', href: '/dashboard/tasks' },
+              { label: 'High priority', value: String(allTasks.filter(t => t.priority === 'high' || t.priority === 'day of').length), sub: 'team wide', href: '/dashboard/tasks' },
+              { label: 'Total productions', value: String(totalProductions), sub: 'in system', href: '/dashboard/productions' },
+            ].map(({ label, value, sub, href }) => (
+              <Link key={label} href={href} style={{ textDecoration: 'none' }}>
+              <div style={{ background: metricBg, borderRadius: '16px', padding: '20px 24px', border: `1px solid ${border}`, cursor: 'pointer', transition: 'transform 0.15s' }}
+                onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'}
+                onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'}
+              >
                 <p style={{ fontSize: '13px', fontWeight: 700, color: muted, margin: '0 0 8px', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>{label}</p>
                 <p style={{ fontSize: '38px', fontWeight: 800, color: text, margin: '0 0 4px', lineHeight: 1 }}>{value}</p>
                 <p style={{ fontSize: '15px', color: muted, margin: 0 }}>{sub}</p>
               </div>
+              </Link>
             ))}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '16px' }}>

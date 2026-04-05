@@ -404,7 +404,7 @@ export default function OnboardingPage() {
                       {pct === 100 ? 'Complete ✓' : `${pct}%`}
                     </p>
                   </div>
-                ) : (
+                ) : isManager ? (
                   <button
                     onClick={e => { e.stopPropagation(); seedTasks(intern) }}
                     disabled={isSeeding}
@@ -412,6 +412,8 @@ export default function OnboardingPage() {
                   >
                     {isSeeding ? 'Setting up...' : 'Initialize onboarding'}
                   </button>
+                ) : (
+                  <p style={{ fontSize: '13px', color: muted, margin: 0, textAlign: 'center' as const }}>Not yet initialized</p>
                 )}
               </div>
             )
