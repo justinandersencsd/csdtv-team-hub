@@ -70,8 +70,6 @@ export default function EquipmentDetailPage() {
   const [showKitAdd, setShowKitAdd] = useState(false)
   const [selectedKit, setSelectedKit] = useState('')
 
-  useEffect(() => { loadData() }, [loadData])
-
   const loadData = useCallback(async () => {
     setLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
@@ -125,6 +123,8 @@ export default function EquipmentDetailPage() {
 
     setLoading(false)
   }, [supabase, tag])
+
+  useEffect(() => { loadData() }, [loadData])
 
   const getCategoryName = (id: string | null) => categories.find(c => c.id === id)?.name || '—'
   const isManager = user?.role === 'Manager'

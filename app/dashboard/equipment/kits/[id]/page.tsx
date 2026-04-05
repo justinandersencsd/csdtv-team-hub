@@ -40,8 +40,6 @@ export default function KitDetailPage() {
   const [borrowerInfo, setBorrowerInfo] = useState('')
   const [dueDate, setDueDate] = useState('')
 
-  useEffect(() => { loadData() }, [loadData])
-
   const loadData = useCallback(async () => {
     setLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
@@ -64,6 +62,8 @@ export default function KitDetailPage() {
 
     setLoading(false)
   }, [supabase, kitId])
+
+  useEffect(() => { loadData() }, [loadData])
 
   const isManager = user?.role === 'Manager'
   const existingIds = items.map(i => i.equipment_id)
