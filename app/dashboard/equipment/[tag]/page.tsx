@@ -165,7 +165,7 @@ export default function EquipmentDetailPage() {
     loadData()
   }, [checkoutItem, borrowerName, borrowerInfo, dueDate, user, supabase, loadData])
 
-  const handleCheckin = useCallback(async () {
+  const handleCheckin = useCallback(async () => {
     if (!item || !user) return
     const activeLoan = loans.find(l => !l.checked_in_at)
     if (!activeLoan) return
@@ -181,7 +181,7 @@ export default function EquipmentDetailPage() {
     loadData()
   }, [item, user, loans, supabase, loadData])
 
-  const handleSaveEdit = useCallback(async () {
+  const handleSaveEdit = useCallback(async () => {
     if (!item || !user) return
     const updates: any = {
       name: editName, brand: editBrand || null, model: editModel || null,
@@ -202,7 +202,7 @@ export default function EquipmentDetailPage() {
     loadData()
   }, [item, user, editName, editBrand, editModel, editSerial, editSite, editCondition, editNotes, editStatus, supabase, loadData])
 
-  const handleAddToKit = useCallback(async () {
+  const handleAddToKit = useCallback(async () => {
     if (!item || !selectedKit || !user) return
     const { error } = await supabase.from('equipment_kit_items').insert({ kit_id: selectedKit, equipment_id: item.id })
     if (error) { alert(error.message.includes('duplicate') ? 'Already in this kit' : error.message); return }
@@ -214,7 +214,7 @@ export default function EquipmentDetailPage() {
     loadData()
   }, [item, selectedKit, user, allKits, supabase, loadData])
 
-  const handleRemoveFromKit = useCallback(async (kitId: string, kitName: string) {
+  const handleRemoveFromKit = useCallback(async (kitId: string, kitName: string) => {
     if (!item || !user) return
     if (!confirm(`Remove from "${kitName}"?`)) return
     await supabase.from('equipment_kit_items').delete().eq('kit_id', kitId).eq('equipment_id', item.id)
