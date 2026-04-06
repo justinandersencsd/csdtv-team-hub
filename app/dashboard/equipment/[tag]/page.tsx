@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useTheme } from '@/lib/theme'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import Loader from '../../../components/Loader'
+import Loader from '../../components/Loader'
 
 type Equipment = {
   id: string; asset_tag: string; name: string; brand: string | null; model: string | null
