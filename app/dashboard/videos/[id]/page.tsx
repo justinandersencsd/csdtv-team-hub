@@ -15,7 +15,7 @@ interface Video {
   script: string | null; notes: string | null; created_by: string | null; created_at: string; updated_at: string
   productions?: { title: string; production_number: number } | null
 }
-interface Talent { id: string; name: string; role_title: string | null; school: string | null; release_status: string; release_notes: string | null }
+interface Talent { id: string; name: string; role_title: string | null; school: string | null; release_status: string; release_notes: string | null; student_employee_number: string | null }
 interface Destination { id: string; platform: string; url: string | null; published_at: string | null; notes: string | null }
 interface VFile { id: string; file_type: string; file_name: string; file_url: string; created_at: string }
 interface Tag { id: string; tag: string }
@@ -73,7 +73,9 @@ export default function VideoDetailPage() {
 
   // Add forms
   const [newTag, setNewTag] = useState('')
-  const [newTalent, setNewTalent] = useState({ name: '', role_title: '', school: '', release_status: 'pending' })
+  const [newTalent, setNewTalent] = useState({ name: '', role_title: '', school: '', release_status: 'pending', student_employee_number: '' })
+  const [csvPaste, setCsvPaste] = useState('')
+  const [showCsvPaste, setShowCsvPaste] = useState(false)
   const [newDest, setNewDest] = useState({ platform: 'YouTube', url: '', notes: '' })
   const [newFile, setNewFile] = useState({ file_type: 'other', file_name: '', file_url: '' })
 
@@ -130,9 +132,34 @@ export default function VideoDetailPage() {
 
   const addTalent = async () => {
     if (!newTalent.name || !video) return
-    const { data } = await supabase.from('video_talent').insert({ video_id: video.id, name: newTalent.name, role_title: newTalent.role_title || null, school: newTalent.school || null, release_status: newTalent.release_status }).select('*').single()
+    const { data } = await supabase.from('video_talent').insert({ video_id: video.id, name: newTalent.name, role_title: newTalent.role_title || null, school: newTalent.school || null, release_status: newTalent.release_status, student_employee_number: newTalent.student_employee_number || null }).select('*').single()
     if (data) setTalent(prev => [...prev, data])
-    setNewTalent({ name: '', role_title: '', school: '', release_status: 'pending' })
+    setNewTalent({ name: '', role_title: '', school: '', release_status: 'pending', student_employee_number: '' })
+  }
+
+  const importCsv = async () => {
+    if (!csvPaste.trim() || !video) return
+    const lines = csvPaste.trim().split('\n').filter(l => l.trim())
+    const rows: { video_id: string; name: string; role_title: string | null; school: string | null; student_employee_number: string | null; release_status: string }[] = []
+    for (const line of lines) {
+      const parts = line.split(/[,\t]/).map(s => s.trim()).filter(Boolean)
+      if (parts.length === 0) continue
+      // Skip header rows
+      if (parts[0].toLowerCase() === 'name') continue
+      rows.push({
+        video_id: video.id,
+        name: parts[0],
+        role_title: parts[1] || null,
+        school: parts[2] || null,
+        student_employee_number: parts[3] || null,
+        release_status: 'pending',
+      })
+    }
+    if (rows.length === 0) return
+    const { data } = await supabase.from('video_talent').insert(rows).select('*')
+    if (data) setTalent(prev => [...prev, ...data])
+    setCsvPaste('')
+    setShowCsvPaste(false)
   }
 
   const removeTalent = async (id: string) => {
@@ -318,14 +345,33 @@ export default function VideoDetailPage() {
       {tab === 'people' && (
         <div>
           <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px', marginBottom: '14px' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 600, color: text, margin: '0 0 12px' }}>Add person</h3>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <div style={{ flex: 1, minWidth: '140px' }}><label style={labelStyle}>Name *</label><input value={newTalent.name} onChange={e => setNewTalent(f => ({ ...f, name: e.target.value }))} style={inputStyle} /></div>
-              <div style={{ flex: 1, minWidth: '120px' }}><label style={labelStyle}>Role / title</label><input value={newTalent.role_title} onChange={e => setNewTalent(f => ({ ...f, role_title: e.target.value }))} placeholder="e.g. Principal" style={inputStyle} /></div>
-              <div style={{ flex: 1, minWidth: '120px' }}><label style={labelStyle}>School</label><input value={newTalent.school} onChange={e => setNewTalent(f => ({ ...f, school: e.target.value }))} style={inputStyle} /></div>
-              <div style={{ minWidth: '120px' }}><label style={labelStyle}>Release</label><select value={newTalent.release_status} onChange={e => setNewTalent(f => ({ ...f, release_status: e.target.value }))} style={inputStyle}>{RELEASE_STATUSES.map(s => <option key={s} value={s}>{RELEASE_LABELS[s].label}</option>)}</select></div>
-              <button onClick={addTalent} disabled={!newTalent.name} style={{ padding: '10px 16px', borderRadius: '8px', background: newTalent.name ? '#1e6cb5' : (dark ? '#1a2540' : '#e2e8f0'), color: newTalent.name ? '#fff' : muted, border: 'none', cursor: newTalent.name ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: '14px', fontWeight: 500, minHeight: '42px' }}>Add</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ fontSize: '13px', fontWeight: 600, color: text, margin: 0 }}>Add person</h3>
+              <button onClick={() => setShowCsvPaste(!showCsvPaste)} style={{ fontSize: '12px', color: '#5ba3e0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {showCsvPaste ? 'Single entry' : 'Paste CSV list'}
+              </button>
             </div>
+            {showCsvPaste ? (
+              <div>
+                <p style={{ fontSize: '12px', color: muted, margin: '0 0 8px' }}>Paste a list — one person per line. Format: Name, Role, School, Student/Employee # (comma or tab separated). Header row is auto-skipped.</p>
+                <textarea value={csvPaste} onChange={e => setCsvPaste(e.target.value)} placeholder={"Jane Smith, Teacher, Hillcrest Elementary, E12345\nJohn Doe, Student, Midvale Middle, S67890\nSarah Johnson, Principal, Corner Canyon High"} style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' as const, fontFamily: 'monospace', fontSize: '13px', marginBottom: '10px' }} />
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button onClick={importCsv} disabled={!csvPaste.trim()} style={{ padding: '10px 16px', borderRadius: '8px', background: csvPaste.trim() ? '#1e6cb5' : (dark ? '#1a2540' : '#e2e8f0'), color: csvPaste.trim() ? '#fff' : muted, border: 'none', cursor: csvPaste.trim() ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: '14px', fontWeight: 500 }}>
+                    Import {csvPaste.trim() ? `(${csvPaste.trim().split('\n').filter(l => l.trim() && l.trim().toLowerCase().split(/[,\t]/)[0] !== 'name').length} people)` : ''}
+                  </button>
+                  <span style={{ fontSize: '12px', color: muted }}>All imported as "Pending" release — update individually after</span>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1, minWidth: '140px' }}><label style={labelStyle}>Name *</label><input value={newTalent.name} onChange={e => setNewTalent(f => ({ ...f, name: e.target.value }))} style={inputStyle} /></div>
+                <div style={{ flex: 1, minWidth: '120px' }}><label style={labelStyle}>Role / title</label><input value={newTalent.role_title} onChange={e => setNewTalent(f => ({ ...f, role_title: e.target.value }))} placeholder="e.g. Principal" style={inputStyle} /></div>
+                <div style={{ flex: 1, minWidth: '120px' }}><label style={labelStyle}>School</label><input value={newTalent.school} onChange={e => setNewTalent(f => ({ ...f, school: e.target.value }))} style={inputStyle} /></div>
+                <div style={{ minWidth: '120px' }}><label style={labelStyle}>Student/Emp #</label><input value={newTalent.student_employee_number} onChange={e => setNewTalent(f => ({ ...f, student_employee_number: e.target.value }))} placeholder="Optional" style={inputStyle} /></div>
+                <div style={{ minWidth: '120px' }}><label style={labelStyle}>Release</label><select value={newTalent.release_status} onChange={e => setNewTalent(f => ({ ...f, release_status: e.target.value }))} style={inputStyle}>{RELEASE_STATUSES.map(s => <option key={s} value={s}>{RELEASE_LABELS[s].label}</option>)}</select></div>
+                <button onClick={addTalent} disabled={!newTalent.name} style={{ padding: '10px 16px', borderRadius: '8px', background: newTalent.name ? '#1e6cb5' : (dark ? '#1a2540' : '#e2e8f0'), color: newTalent.name ? '#fff' : muted, border: 'none', cursor: newTalent.name ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: '14px', fontWeight: 500, minHeight: '42px' }}>Add</button>
+              </div>
+            )}
           </div>
           {talent.length === 0 ? (
             <p style={{ color: muted, textAlign: 'center', padding: '40px 0', fontSize: '14px' }}>No people added yet</p>
@@ -338,7 +384,7 @@ export default function VideoDetailPage() {
                     <div style={{ flex: 1, minWidth: '150px' }}>
                       <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0 }}>{person.name}</p>
                       <p style={{ fontSize: '13px', color: muted, margin: '2px 0 0' }}>
-                        {[person.role_title, person.school].filter(Boolean).join(' · ') || 'No details'}
+                        {[person.role_title, person.school, person.student_employee_number ? `#${person.student_employee_number}` : null].filter(Boolean).join(' · ') || 'No details'}
                       </p>
                     </div>
                     <select value={person.release_status} onChange={e => updateRelease(person.id, e.target.value)} style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', background: `${rel.color}15`, color: rel.color, border: `0.5px solid ${rel.color}30`, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, outline: 'none' }}>
