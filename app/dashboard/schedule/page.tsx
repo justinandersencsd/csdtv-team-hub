@@ -490,7 +490,7 @@ export default function SchedulePage() {
           <span style={{ fontSize: '13px', color: muted }}>Payday <strong style={{ color: '#22c55e' }}>{fmt(primaryPP.payday, { month: 'short', day: 'numeric' })}</strong></span>
           <button onClick={() => {
             if (!primaryPP) return
-            const lines: string[] = [`Pay Period ${primaryPP.num}: ${fmt(primaryPP.start, { month: 'short', day: 'numeric' })} – ${fmt(primaryPP.end, { month: 'short', day: 'numeric' })}`, `Name: ${currentUser?.name || viewedMember?.name || ''}`, '']
+            const lines: string[] = [`Pay Period ${primaryPP.num}: ${fmt(primaryPP.start, { month: 'short', day: 'numeric' })} – ${fmt(primaryPP.end, { month: 'short', day: 'numeric' })}`, `Name: ${currentUser?.name || ''}`, '']
             const cur = new Date(primaryPP.start); const end = new Date(primaryPP.end); end.setHours(23,59,59,999)
             while (cur <= end) {
               const dow = cur.getDay()
