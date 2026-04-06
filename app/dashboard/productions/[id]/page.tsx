@@ -176,6 +176,23 @@ export default function ProductionDetailPage() {
     await logActivity(!item.completed ? 'Completed step' : 'Uncompleted step', item.title)
   }, [supabase, logActivity])
 
+  const moveItem = useCallback(async (index: number, direction: 'up' | 'down') => {
+    const swapIdx = direction === 'up' ? index - 1 : index + 1
+    if (swapIdx < 0 || swapIdx >= checklist.length) return
+    const a = checklist[index]
+    const b = checklist[swapIdx]
+    await Promise.all([
+      supabase.from('checklist_items').update({ sort_order: b.sort_order }).eq('id', a.id),
+      supabase.from('checklist_items').update({ sort_order: a.sort_order }).eq('id', b.id),
+    ])
+    setChecklist(prev => {
+      const next = [...prev]
+      next[index] = { ...b, sort_order: a.sort_order }
+      next[swapIdx] = { ...a, sort_order: b.sort_order }
+      return next.sort((x, y) => x.sort_order - y.sort_order)
+    })
+  }, [supabase, checklist])
+
   const massAssign = useCallback(async () => {
     if (!selectedMember || !uuid) return
     await supabase.from('checklist_items').update({ assigned_to: selectedMember }).eq('production_id', uuid)
@@ -551,6 +568,10 @@ export default function ProductionDetailPage() {
                         )}
                       </button>
                       <span style={{ flex: 1, fontSize: '13px', color: item.completed ? muted : text, textDecoration: item.completed ? 'line-through' : 'none' }}>{item.title}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', flexShrink: 0 }}>
+                        <button onClick={() => moveItem(i, 'up')} disabled={i === 0} style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? 'transparent' : muted, fontSize: '10px', padding: '0 4px', lineHeight: 1, opacity: 0.5 }}>▲</button>
+                        <button onClick={() => moveItem(i, 'down')} disabled={i === checklist.length - 1} style={{ background: 'none', border: 'none', cursor: i === checklist.length - 1 ? 'default' : 'pointer', color: i === checklist.length - 1 ? 'transparent' : muted, fontSize: '10px', padding: '0 4px', lineHeight: 1, opacity: 0.5 }}>▼</button>
+                      </div>
                       <select
                         value={item.assigned_to || ''}
                         onChange={e => {

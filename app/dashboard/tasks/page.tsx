@@ -15,7 +15,7 @@ interface Task {
   id: string; title: string; description: string | null; status: string; priority: string
   due_date: string | null; created_at: string; assigned_to: string | null; created_by: string
   production_id: string | null; needs_equipment: boolean; notes: string | null
-  completed_at: string | null
+  completed_at: string | null; recurring: string | null; recurring_interval: number | null
   productions?: { id: string; title: string; production_number: number; request_type_label: string | null; start_datetime: string | null; status: string | null } | null
 }
 
@@ -53,7 +53,7 @@ export default function TasksPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [groupBy, setGroupBy] = useState<'none' | 'person' | 'status' | 'priority'>('none')
   const [showNewTask, setShowNewTask] = useState(false)
-  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'normal', assigned_to: '', due_date: '', production_id: '', needs_equipment: false })
+  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'normal', assigned_to: '', due_date: '', production_id: '', needs_equipment: false, recurring: '' })
   const [panelNotes, setPanelNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
   const [search, setSearch] = useState('')
@@ -153,13 +153,14 @@ export default function TasksPage() {
       title: newTask.title, description: newTask.description || null,
       priority: newTask.priority, assigned_to: newTask.assigned_to || null,
       due_date: newTask.due_date || null, production_id: newTask.production_id || null,
-      needs_equipment: newTask.needs_equipment, status: 'pending', created_by: currentUser.id,
+      needs_equipment: newTask.needs_equipment, recurring: newTask.recurring || null,
+      recurring_interval: newTask.recurring ? 1 : null, status: 'pending', created_by: currentUser.id,
     }).select('*').single()
     if (data) {
       const linkedProd = newTask.production_id ? allProductions.find(p => p.id === newTask.production_id) || null : null
       setTasks(prev => [{ ...data, productions: linkedProd }, ...prev])
       if (newTask.assigned_to) sendAssignEmail(newTask.assigned_to, newTask.title)
-      setNewTask({ title: '', description: '', priority: 'normal', assigned_to: '', due_date: '', production_id: '', needs_equipment: false })
+      setNewTask({ title: '', description: '', priority: 'normal', assigned_to: '', due_date: '', production_id: '', needs_equipment: false, recurring: '' })
       setShowNewTask(false)
     }
   }, [newTask, currentUser, supabase, sendAssignEmail, allProductions])
@@ -169,15 +170,33 @@ export default function TasksPage() {
     const next = task.status === 'pending' ? 'in progress' : task.status === 'in progress' ? 'complete' : 'pending'
     await supabase.from('tasks').update({ status: next, completed_at: next === 'complete' ? new Date().toISOString() : null }).eq('id', task.id)
     if (next === 'complete') {
-      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'complete' } : t))
+      // Auto-create next recurring task
+      if (task.recurring && task.due_date) {
+        const interval = task.recurring_interval || 1
+        const nextDate = new Date(task.due_date + 'T00:00:00')
+        if (task.recurring === 'daily') nextDate.setDate(nextDate.getDate() + interval)
+        else if (task.recurring === 'weekly') nextDate.setDate(nextDate.getDate() + (7 * interval))
+        else if (task.recurring === 'monthly') nextDate.setMonth(nextDate.getMonth() + interval)
+        const { data: newTask } = await supabase.from('tasks').insert({
+          title: task.title, description: task.description, priority: task.priority,
+          assigned_to: task.assigned_to, production_id: task.production_id,
+          needs_equipment: task.needs_equipment, recurring: task.recurring,
+          recurring_interval: task.recurring_interval, status: 'pending',
+          due_date: nextDate.toISOString().split('T')[0], created_by: task.created_by,
+        }).select('*, productions(id,title,production_number,request_type_label,start_datetime,status)').single()
+        if (newTask) setTasks(prev => [newTask, ...prev.filter(t => t.id !== task.id)])
+        else setTasks(prev => prev.filter(t => t.id !== task.id))
+      } else {
+        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'complete' } : t))
+        setTimeout(() => { setTasks(prev => prev.filter(t => t.id !== task.id)) }, 3000)
+      }
       setCompleting(prev => new Set(prev).add(task.id))
       if (selectedTask?.id === task.id) closePanel()
+      const completed = { ...task, status: 'complete', completed_at: new Date().toISOString() }
       setTimeout(() => {
-        const completed = { ...task, status: 'complete', completed_at: new Date().toISOString() }
         setCompletedTasks(prev => [completed, ...prev])
-        setTasks(prev => prev.filter(t => t.id !== task.id))
         setCompleting(prev => { const n = new Set(prev); n.delete(task.id); return n })
-      }, 3000)
+      }, 1000)
     } else {
       setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: next } : t))
       setSelectedTask(prev => prev?.id === task.id ? { ...prev, status: next } : prev)
@@ -307,6 +326,15 @@ export default function TasksPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
               <input type="checkbox" id="needs_equipment" checked={newTask.needs_equipment} onChange={e => setNewTask(p => ({ ...p, needs_equipment: e.target.checked }))} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
               <label htmlFor="needs_equipment" style={{ fontSize: '14px', color: muted, cursor: 'pointer' }}>Needs equipment pulled</label>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+              <label style={{ fontSize: '14px', color: muted }}>Repeat:</label>
+              <select value={newTask.recurring} onChange={e => setNewTask(p => ({ ...p, recurring: e.target.value }))} style={{ ...inputStyle, width: 'auto', minWidth: '100px' }}>
+                <option value="">Never</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={createTask} style={{ fontSize: '14px', padding: '8px 18px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Create task</button>

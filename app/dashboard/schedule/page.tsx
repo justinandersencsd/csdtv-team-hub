@@ -488,6 +488,24 @@ export default function SchedulePage() {
           <span style={{ width: '1px', height: '14px', background: border, flexShrink: 0 }} />
           <span style={{ fontSize: '13px', color: muted }}>Cutoff <strong style={{ color: text }}>{fmt(primaryPP.cutoff, { month: 'short', day: 'numeric' })}</strong></span>
           <span style={{ fontSize: '13px', color: muted }}>Payday <strong style={{ color: '#22c55e' }}>{fmt(primaryPP.payday, { month: 'short', day: 'numeric' })}</strong></span>
+          <button onClick={() => {
+            if (!primaryPP) return
+            const lines: string[] = [`Pay Period ${primaryPP.num}: ${fmt(primaryPP.start, { month: 'short', day: 'numeric' })} – ${fmt(primaryPP.end, { month: 'short', day: 'numeric' })}`, `Name: ${currentUser?.name || viewedMember?.name || ''}`, '']
+            const cur = new Date(primaryPP.start); const end = new Date(primaryPP.end); end.setHours(23,59,59,999)
+            while (cur <= end) {
+              const dow = cur.getDay()
+              if (dow !== 0 && dow !== 6) {
+                const h = getHoursForDay(cur)
+                lines.push(`${cur.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}: ${h || 'Off'}`)
+              }
+              cur.setDate(cur.getDate() + 1)
+            }
+            lines.push('', `Total: ${ppTotalHours}h`)
+            navigator.clipboard.writeText(lines.join('\n'))
+            alert('Hours copied to clipboard!')
+          }} style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '6px', background: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit', marginLeft: 'auto' }}>
+            Copy hours
+          </button>
           {payPeriodsInView.length > 1 && (
             <span style={{ fontSize: '12px', color: muted, marginLeft: 'auto' }}>+{payPeriodsInView.length - 1} more period{payPeriodsInView.length > 2 ? 's' : ''} this month</span>
           )}

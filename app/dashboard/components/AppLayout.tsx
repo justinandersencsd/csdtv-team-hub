@@ -17,6 +17,7 @@ const NAV_ITEMS = [
     { label: 'Schedule', href: '/dashboard/schedule', icon: 'calendar' },
     { label: 'Equipment', href: '/dashboard/equipment', icon: 'equipment' },
     { label: 'Video library', href: '/dashboard/videos', icon: 'film' },
+    { label: 'Calendar', href: '/dashboard/calendar', icon: 'calendar' },
   ]},
   { section: 'Resources', items: [
     { label: 'Reports', href: '/dashboard/reports', icon: 'chart' },
@@ -40,6 +41,7 @@ const BOTTOM_NAV = [
 const MORE_ITEMS = [
   { label: 'Equipment', href: '/dashboard/equipment', icon: 'equipment' },
   { label: 'Video library', href: '/dashboard/videos', icon: 'film' },
+  { label: 'Calendar', href: '/dashboard/calendar', icon: 'calendar' },
   { label: 'Reports', href: '/dashboard/reports', icon: 'chart' },
   { label: 'Knowledge base', href: '/dashboard/knowledge', icon: 'book' },
   { label: 'Quick links', href: '/dashboard/links', icon: 'link' },
@@ -144,6 +146,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       setUnreadCount(count || 0)
     }
     loadUnread()
+    // Subscribe to realtime notification changes
+    const channel = supabase.channel('notifications-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, () => { loadUnread() })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
   }, [supabase, userId])
 
   const handleSignOut = useCallback(async () => {

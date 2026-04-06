@@ -14,8 +14,11 @@ interface Article {
   content: string
   category: string
   created_by: string
+  updated_by: string | null
   updated_at: string
+  pinned: boolean
   author?: { name: string } | null
+  editor?: { name: string } | null
 }
 
 interface CurrentUser { id: string; name: string; role: string }
@@ -74,7 +77,7 @@ export default function KnowledgePage() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
     const [articlesRes, userRes] = await Promise.all([
-      supabase.from('knowledge_base').select('*').order('updated_at', { ascending: false }),
+      supabase.from('knowledge_base').select('*, author:team!knowledge_base_created_by_fkey(name), editor:team!knowledge_base_updated_by_fkey(name)').order('pinned', { ascending: false }).order('updated_at', { ascending: false }),
       supabase.from('team').select('*').eq('supabase_user_id', session.user.id).single(),
     ])
     setArticles(articlesRes.data || [])
@@ -91,16 +94,16 @@ export default function KnowledgePage() {
     setSaveError('')
     if (editing && selected) {
       const { data, error } = await supabase.from('knowledge_base')
-        .update({ title: form.title, content: htmlContent, category: form.category, updated_at: new Date().toISOString() })
+        .update({ title: form.title, content: htmlContent, category: form.category, updated_at: new Date().toISOString(), updated_by: currentUser.id })
         .eq('id', selected.id)
-        .select('*')
+        .select('*, author:team!knowledge_base_created_by_fkey(name), editor:team!knowledge_base_updated_by_fkey(name)')
         .single()
       if (error) { setSaveError('Failed to save article. Please try again.'); return }
       if (data) { setArticles(prev => prev.map(a => a.id === data.id ? data : a)); setSelected(data) }
     } else {
       const { data, error } = await supabase.from('knowledge_base')
-        .insert({ title: form.title, content: htmlContent, category: form.category, created_by: currentUser.id })
-        .select('*')
+        .insert({ title: form.title, content: htmlContent, category: form.category, created_by: currentUser.id, updated_by: currentUser.id })
+        .select('*, author:team!knowledge_base_created_by_fkey(name), editor:team!knowledge_base_updated_by_fkey(name)')
         .single()
       if (error) { setSaveError('Failed to create article. Please try again.'); return }
       if (data) { setArticles(prev => [data, ...prev]); setSelected(data); setShowMobileDetail(true) }
@@ -114,6 +117,16 @@ export default function KnowledgePage() {
     setSelected(article)
     setEditing(false)
     setShowMobileDetail(true)
+  }
+
+  const togglePin = async (article: Article) => {
+    const newPinned = !article.pinned
+    await supabase.from('knowledge_base').update({ pinned: newPinned }).eq('id', article.id)
+    setArticles(prev => prev.map(a => a.id === article.id ? { ...a, pinned: newPinned } : a).sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    }))
+    if (selected?.id === article.id) setSelected(prev => prev ? { ...prev, pinned: newPinned } : prev)
   }
 
   const filtered = articles.filter(a => {
@@ -155,6 +168,12 @@ export default function KnowledgePage() {
         </button>
         <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
           {selected && !editing && (
+            <>
+            <button
+              onClick={() => togglePin(selected)}
+              style={{ fontSize: '15px', padding: '8px 16px', borderRadius: '8px', background: selected.pinned ? 'rgba(232,160,32,0.1)' : 'transparent', border: `0.5px solid ${selected.pinned ? 'rgba(232,160,32,0.3)' : border}`, color: selected.pinned ? '#e8a020' : muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>
+              {selected.pinned ? '📌 Pinned' : 'Pin'}
+            </button>
             <button
               onClick={() => {
                 setEditing(true)
@@ -164,6 +183,7 @@ export default function KnowledgePage() {
               style={{ fontSize: '15px', padding: '8px 16px', borderRadius: '8px', background: 'transparent', border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px' }}>
               Edit
             </button>
+            </>
           )}
         </div>
       </div>
@@ -273,18 +293,21 @@ export default function KnowledgePage() {
               {filtered.map(article => {
                 const cs = CAT_STYLES[article.category] || CAT_STYLES.Other
                 const isSelected = selected?.id === article.id
+                const editedBy = article.editor?.name || article.author?.name
                 return (
                   <div key={article.id} onClick={() => openArticle(article)} style={{ padding: '14px 16px', background: isSelected ? (dark ? 'rgba(30,108,181,0.15)' : 'rgba(30,108,181,0.06)') : cardBg, border: `0.5px solid ${isSelected ? '#1e6cb5' : border}`, borderRadius: '12px', cursor: 'pointer', transition: 'all 0.15s' }}
                     onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = hoverBg }}
                     onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = cardBg }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+                      {article.pinned && <span style={{ fontSize: '12px', color: '#e8a020', flexShrink: 0 }}>📌</span>}
                       <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0, flex: 1 }}>{article.title}</p>
                       <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '6px', background: cs.bg, color: cs.color, flexShrink: 0, fontWeight: 500 }}>{article.category}</span>
                     </div>
-                    <p style={{ fontSize: '14px', color: muted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    <p style={{ fontSize: '14px', color: muted, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                       {stripHtml(article.content).slice(0, 90)}
                     </p>
+                    {editedBy && <p style={{ fontSize: '11px', color: muted, margin: 0, opacity: 0.6 }}>Last edited by {editedBy}</p>}
                   </div>
                 )
               })}
