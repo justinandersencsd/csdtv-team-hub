@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useTheme } from '@/lib/theme'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import Loader from '../components/Loader'
 
 type Category = {
   id: string
@@ -219,8 +220,8 @@ export default function EquipmentPage() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '24px', color: muted, fontSize: '15px' }}>
-        Loading equipment...
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+        <Loader />
       </div>
     )
   }

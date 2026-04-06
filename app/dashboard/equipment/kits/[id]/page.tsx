@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useTheme } from '@/lib/theme'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import Loader from '../../../components/Loader'
 
 type Equipment = {
   id: string; asset_tag: string; name: string; brand: string | null; model: string | null
@@ -135,7 +136,7 @@ export default function KitDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '24px', color: muted }}>Loading...</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><Loader /></div>
     )
   }
 

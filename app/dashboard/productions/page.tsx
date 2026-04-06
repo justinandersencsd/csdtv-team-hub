@@ -6,6 +6,7 @@ import { useTheme } from '@/lib/theme'
 import { getSchoolName } from '@/lib/schools'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import Loader from '../components/Loader'
 
 interface Production {
   id: string; production_number: number; title: string
@@ -262,7 +263,7 @@ function ProductionsPageContent() {
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-      <p style={{ color: muted }}>Loading productions...</p>
+      <Loader />
     </div>
   )
 
@@ -409,7 +410,7 @@ function ProductionsPageContent() {
 
 export default function ProductionsPage() {
   return (
-    <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: '#8899bb' }}>Loading productions...</p></div>}>
+    <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><Loader /></div>}>
       <ProductionsPageContent />
     </Suspense>
   )

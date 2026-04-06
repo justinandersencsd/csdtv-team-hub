@@ -6,6 +6,7 @@ import { useTheme } from '@/lib/theme'
 import { getSchoolName } from '@/lib/schools'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import Loader from '../../components/Loader'
 
 interface Production {
   id: string; production_number: number; title: string
@@ -330,7 +331,7 @@ export default function ProductionDetailPage() {
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-      <p style={{ color: muted }}>Loading production...</p>
+      <Loader />
     </div>
   )
 
@@ -597,8 +598,8 @@ export default function ProductionDetailPage() {
             <h3 style={{ fontSize: '12px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px' }}>Organizer</h3>
             {([['Name', production.organizer_name], ['Email', production.organizer_email], ['School', getSchoolName(production.school_department)], ['Year', production.school_year], ['Focus', production.focus_area]] as [string, string | null][]).map(([l, v]) => v ? (
               <div key={l} style={{ display: 'flex', gap: '10px', padding: '6px 0', borderBottom: `0.5px solid ${border}`, fontSize: '13px' }}>
-                <span style={{ color: muted, minWidth: '60px' }}>{l}</span>
-                <span style={{ color: text }}>{v}</span>
+                <span style={{ color: muted, minWidth: '60px', flexShrink: 0 }}>{l}</span>
+                <span style={{ color: text, minWidth: 0, wordBreak: 'break-word' as const }}>{v}</span>
               </div>
             ) : null)}
           </div>
@@ -606,8 +607,8 @@ export default function ProductionDetailPage() {
             <h3 style={{ fontSize: '12px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '1px', margin: '0 0 12px' }}>Schedule & location</h3>
             {([['Start', formatDateTime(production.start_datetime)], ['End', formatDateTime(production.end_datetime)], ['Filming', getSchoolName(production.filming_location)], ['Venue', production.event_location]] as [string, string | null][]).map(([l, v]) => v ? (
               <div key={l} style={{ display: 'flex', gap: '10px', padding: '6px 0', borderBottom: `0.5px solid ${border}`, fontSize: '13px' }}>
-                <span style={{ color: muted, minWidth: '60px' }}>{l}</span>
-                <span style={{ color: text }}>{v}</span>
+                <span style={{ color: muted, minWidth: '60px', flexShrink: 0 }}>{l}</span>
+                <span style={{ color: text, minWidth: 0, wordBreak: 'break-word' as const }}>{v}</span>
               </div>
             ) : null)}
           </div>

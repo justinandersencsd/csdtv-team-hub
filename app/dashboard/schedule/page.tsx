@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
 import Link from 'next/link'
+import Loader from '../components/Loader'
 
 // ─── Pay periods from PDF ────────────────────────────────────────────────────
 const PAY_PERIODS: { num: number; start: string; end: string; cutoff: string; payday: string }[] = [
@@ -433,7 +434,7 @@ export default function SchedulePage() {
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-      <p style={{ color: muted }}>Loading schedule...</p>
+      <Loader />
     </div>
   )
 

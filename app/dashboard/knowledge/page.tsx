@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
+import Loader from '../components/Loader'
 
 interface Article {
   id: string
@@ -204,7 +205,7 @@ export default function KnowledgePage() {
   )
 
   if (loading) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading knowledge base...</p></div>
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><Loader /></div>
   }
 
   return (

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
+import Loader from '../components/Loader'
 
 interface OnboardingTask {
   id: string
@@ -253,7 +254,7 @@ export default function OnboardingPage() {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        <p style={{ color: muted }}>Loading onboarding...</p>
+        <Loader />
       </div>
     )
   }
@@ -332,7 +333,7 @@ export default function OnboardingPage() {
           </div>
         </div>
         {loadingDetail ? (
-          <p style={{ color: muted, textAlign: 'center', padding: '40px 0' }}>Loading...</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}><Loader /></div>
         ) : (
           <>
             <WeekSection weekNum={1} weekTasks={week1} setFn={setInternTasks} />

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
+import Loader from './Loader'
 
 interface Notification {
   id: string
@@ -95,7 +96,7 @@ export default function NotificationPanel({ onClose, onUnreadChange, userId }: P
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading ? (
-          <p style={{ color: muted, fontSize: '15px', textAlign: 'center', padding: '20px' }}>Loading...</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}><Loader size={32} /></div>
         ) : notifications.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
             <p style={{ fontSize: '15px', color: muted, margin: 0 }}>No notifications yet</p>

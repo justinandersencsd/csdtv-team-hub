@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
+import Loader from '../components/Loader'
 
 interface QuickLink {
   id: string
@@ -88,7 +89,7 @@ export default function QuickLinksPage() {
     outline: 'none', width: '100%', boxSizing: 'border-box', minHeight: '44px',
   }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: muted }}>Loading links...</p></div>
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><Loader /></div>
 
   return (
     <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
@@ -170,33 +171,33 @@ export default function QuickLinksPage() {
                 </span>
                 <span style={{ fontSize: '14px', color: muted }}>{catLinks.length} {catLinks.length === 1 ? 'link' : 'links'}</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
                 {catLinks.map(link => (
-                  <div key={link.id} style={{ position: 'relative', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden', transition: 'border-color 0.15s, transform 0.15s' }}
+                  <div key={link.id} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden', transition: 'border-color 0.15s, transform 0.15s' }}
                     onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = cs.color; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)' }}
                     onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = border; (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)' }}
                   >
-                    <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', padding: '16px', textDecoration: 'none' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <p style={{ fontSize: '14px', fontWeight: 600, color: text, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{link.title}</p>
-                          {link.description && <p style={{ fontSize: '14px', color: muted, margin: '0 0 6px', lineHeight: 1.4 }}>{link.description}</p>}
-                          <p style={{ fontSize: '13px', color: muted, margin: 0, opacity: 0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                            {link.url.replace(/^https?:\/\//, '').split('/')[0]}
-                          </p>
-                        </div>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: cs.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={cs.color} strokeWidth="2">
-                            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-                            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-                          </svg>
-                        </div>
+                    <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '16px', textDecoration: 'none' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: cs.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={cs.color} strokeWidth="2">
+                          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+                          <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                        </svg>
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <p style={{ fontSize: '15px', fontWeight: 600, color: text, margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{link.title}</p>
+                        {link.description && <p style={{ fontSize: '13px', color: muted, margin: '0 0 4px', lineHeight: 1.4 }}>{link.description}</p>}
+                        <p style={{ fontSize: '12px', color: muted, margin: 0, opacity: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                          {link.url.replace(/^https?:\/\//, '').split('/')[0]}
+                        </p>
                       </div>
                     </a>
                     {isManager && (
-                      <button onClick={() => { if (confirm('Delete this link?')) deleteLink(link.id) }} style={{ position: 'absolute', top: '8px', right: '44px', background: 'rgba(239,68,68,0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
+                      <div style={{ borderTop: `0.5px solid ${border}`, padding: '6px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button onClick={() => { if (confirm('Delete this link?')) deleteLink(link.id) }} style={{ fontSize: '12px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px', borderRadius: '4px', opacity: 0.7 }}>
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}
