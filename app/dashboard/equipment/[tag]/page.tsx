@@ -198,15 +198,18 @@ export default function EquipmentDetailPage() {
       <button onClick={() => router.push('/dashboard/equipment')} style={{ background: 'none', border: 'none', color: '#5ba3e0', cursor: 'pointer', fontSize: '14px', fontFamily: 'inherit', marginBottom: '16px', padding: 0 }}>← Equipment</button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 700, color: '#5ba3e0' }}>{item.asset_tag}</span>
-            <h1 style={{ fontSize: '24px', fontWeight: 700, color: text, margin: 0 }}>{item.name}</h1>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, background: sc.bg, color: sc.text }}>{item.status.replace('_', ' ')}</span>
-            <span style={{ fontSize: '13px', color: muted }}>{item.site}</span>
-            <span style={{ fontSize: '13px', color: conditionColor(item.condition) }}>Condition: {item.condition.replace('_', ' ')}</span>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          {item.photo_url && <img src={item.photo_url} alt={item.name} style={{ width: '96px', height: '96px', borderRadius: '12px', objectFit: 'cover', border: `1px solid ${border}`, flexShrink: 0 }} />}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '18px', fontWeight: 700, color: '#5ba3e0' }}>{item.asset_tag}</span>
+              <h1 style={{ fontSize: '24px', fontWeight: 700, color: text, margin: 0 }}>{item.name}</h1>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, background: sc.bg, color: sc.text }}>{item.status.replace('_', ' ')}</span>
+              <span style={{ fontSize: '13px', color: muted }}>{item.site}</span>
+              <span style={{ fontSize: '13px', color: conditionColor(item.condition) }}>Condition: {item.condition.replace('_', ' ')}</span>
+            </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

@@ -330,8 +330,8 @@ export default function EquipmentPage() {
 
           {/* Equipment table */}
           <div className="csdtv-equipment-table" style={{ background: cardBg, borderRadius: '14px', border: `1px solid ${border}`, overflow: 'hidden' }}>
-            <div className="csdtv-eq-header" style={{ display: 'grid', gridTemplateColumns: '80px 1fr 140px 160px 110px 90px 60px', padding: '12px 16px', borderBottom: `1px solid ${border}`, fontSize: '12px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              <span>Tag</span><span>Name</span><span>Brand</span><span>Category</span><span>Status</span><span>Site</span><span></span>
+            <div className="csdtv-eq-header" style={{ display: 'grid', gridTemplateColumns: '80px 44px 1fr 140px 160px 110px 90px 60px', padding: '12px 16px', borderBottom: `1px solid ${border}`, fontSize: '12px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              <span>Tag</span><span></span><span>Name</span><span>Brand</span><span>Category</span><span>Status</span><span>Site</span><span></span>
             </div>
 
             {filtered.length === 0 && (
@@ -341,8 +341,9 @@ export default function EquipmentPage() {
             {filtered.map((e, i) => {
               const sc = statusColor(e.status)
               return (
-                <div key={e.id} onClick={() => router.push(`/dashboard/equipment/${e.asset_tag}`)} className="csdtv-eq-row" style={{ display: 'grid', gridTemplateColumns: '80px 1fr 140px 160px 110px 90px 60px', padding: '12px 16px', borderBottom: i < filtered.length - 1 ? `1px solid ${border}` : 'none', cursor: 'pointer', alignItems: 'center', fontSize: '14px', color: text, transition: 'background 0.15s' }} onMouseEnter={ev => (ev.currentTarget.style.background = dark ? '#111d33' : '#f0f4ff')} onMouseLeave={ev => (ev.currentTarget.style.background = 'transparent')}>
+                <div key={e.id} onClick={() => router.push(`/dashboard/equipment/${e.asset_tag}`)} className="csdtv-eq-row" style={{ display: 'grid', gridTemplateColumns: '80px 44px 1fr 140px 160px 110px 90px 60px', padding: '12px 16px', borderBottom: i < filtered.length - 1 ? `1px solid ${border}` : 'none', cursor: 'pointer', alignItems: 'center', fontSize: '14px', color: text, transition: 'background 0.15s' }} onMouseEnter={ev => (ev.currentTarget.style.background = dark ? '#111d33' : '#f0f4ff')} onMouseLeave={ev => (ev.currentTarget.style.background = 'transparent')}>
                   <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '13px', color: '#5ba3e0' }}>{e.asset_tag}</span>
+                  <span>{e.photo_url ? <img src={e.photo_url} alt="" style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover', display: 'block' }} /> : <span style={{ width: '36px', height: '36px', borderRadius: '6px', background: dark ? '#111d33' : '#f0f4ff', display: 'block' }} />}</span>
                   <span style={{ fontWeight: 500 }}>{e.name}</span>
                   <span style={{ color: muted, fontSize: '13px' }}>{e.brand || '—'}</span>
                   <span style={{ color: muted, fontSize: '13px' }}>{getCategoryName(e.category_id)}</span>
