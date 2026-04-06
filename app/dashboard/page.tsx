@@ -77,17 +77,17 @@ export default function DashboardPage() {
 
     // Figure out today's scheduled hours
     const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const
-    const todayDayName = dayNames[new Date().getDay()] as keyof ScheduleDay
-    if (todayDayName !== 'sunday' && todayDayName !== 'saturday') {
+    const todayDayName = dayNames[new Date().getDay()]
+    const isWeekday = todayDayName !== 'sunday' && todayDayName !== 'saturday'; if (isWeekday) { const dayKey = todayDayName as keyof ScheduleDay
       // Check for override this week first
       const monday = new Date()
       monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
       const weekStart = monday.toISOString().split('T')[0]
       const { data: override } = await supabase.from('schedule_overrides').select('*').eq('user_id', user.id).eq('week_start', weekStart).single()
-      if (override && override[todayDayName]) {
-        setTodayHours(override[todayDayName])
-      } else if (schedDefaultRes.data && schedDefaultRes.data[todayDayName]) {
-        setTodayHours(schedDefaultRes.data[todayDayName])
+      if (override && override[dayKey]) {
+        setTodayHours(override[dayKey])
+      } else if (schedDefaultRes.data && schedDefaultRes.data[dayKey]) {
+        setTodayHours(schedDefaultRes.data[dayKey])
       } else {
         setTodayHours(null)
       }
