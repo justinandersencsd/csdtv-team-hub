@@ -139,6 +139,13 @@ export default function TasksPage() {
     if (selectedTask?.id === id) closePanel()
   }, [supabase, selectedTask, closePanel])
 
+  const clearCompleted = useCallback(async () => {
+    if (!confirm(`Delete all ${completedTasks.length} completed tasks? This cannot be undone.`)) return
+    const ids = completedTasks.map(t => t.id)
+    await supabase.from('tasks').delete().in('id', ids)
+    setCompletedTasks([])
+  }, [supabase, completedTasks])
+
   // FIX: insert without FK join to avoid 400 error, then attach production from local list
   const createTask = useCallback(async () => {
     if (!newTask.title || !currentUser) return
@@ -396,7 +403,13 @@ export default function TasksPage() {
                 <p style={{ fontSize: '15px', color: muted }}>No completed tasks yet</p>
               </div>
             ) : (
-              <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', overflow: 'hidden' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+                  <button onClick={clearCompleted} style={{ fontSize: '13px', padding: '6px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '0.5px solid rgba(239,68,68,0.2)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+                    Clear all completed
+                  </button>
+                </div>
+                <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', overflow: 'hidden' }}>
                 {completedTasks.map((task, i) => {
                   const assignee = getMember(task.assigned_to)
                   return (
@@ -416,6 +429,7 @@ export default function TasksPage() {
                     </div>
                   )
                 })}
+              </div>
               </div>
             )}
           </div>

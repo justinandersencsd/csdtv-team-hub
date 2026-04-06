@@ -19,6 +19,8 @@ interface Production {
 
 interface TeamMember { id: string; name: string; role: string; avatar_color: string }
 interface CurrentUser { id: string; name: string; role: string }
+interface Activity { id: string; action: string; detail: string | null; created_at: string; production_id: string; team?: { name: string } | null }
+interface ScheduleDay { monday: string; tuesday: string; wednesday: string; thursday: string; friday: string }
 
 export default function DashboardPage() {
   const { theme } = useTheme()
@@ -34,6 +36,9 @@ export default function DashboardPage() {
   const [todayProductions, setTodayProductions] = useState<Production[]>([])
   const [view, setView] = useState<'my' | 'team'>('my')
   const [loading, setLoading] = useState(true)
+  const [todayHours, setTodayHours] = useState<string | null>(null)
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([])
+  const [completing, setCompleting] = useState<Set<string>>(new Set())
 
   const text     = dark ? '#f0f4ff' : '#1a1f36'
   const muted    = dark ? '#94a3b8' : '#6b7280'
@@ -52,13 +57,15 @@ export default function DashboardPage() {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
     const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999)
 
-    const [tasksRes, prodMembersRes, teamRes, allTasksRes, countRes, todayProdsRes] = await Promise.all([
+    const [tasksRes, prodMembersRes, teamRes, allTasksRes, countRes, todayProdsRes, schedDefaultRes, activityRes] = await Promise.all([
       supabase.from('tasks').select('*, productions(title)').eq('assigned_to', user.id).neq('status', 'complete').order('due_date', { ascending: true, nullsFirst: false }).limit(12),
       supabase.from('production_members').select('production_id').eq('user_id', user.id),
       supabase.from('team').select('*').eq('active', true),
       supabase.from('tasks').select('*, productions(title)').neq('status', 'complete').order('due_date', { ascending: true, nullsFirst: false }).limit(12),
       supabase.from('productions').select('id', { count: 'exact', head: true }),
       supabase.from('productions').select('id, title, production_number, request_type_label, type, status, start_datetime').gte('start_datetime', todayStart.toISOString()).lte('start_datetime', todayEnd.toISOString()).limit(5),
+      supabase.from('schedule_defaults').select('*').eq('user_id', user.id).single(),
+      supabase.from('production_activity').select('*, team:team(name)').order('created_at', { ascending: false }).limit(10),
     ])
 
     setMyTasks(tasksRes.data || [])
@@ -66,6 +73,25 @@ export default function DashboardPage() {
     setAllTasks(allTasksRes.data || [])
     setTotalProductions(countRes.count || 0)
     setTodayProductions(todayProdsRes.data || [])
+    setRecentActivity(activityRes.data || [])
+
+    // Figure out today's scheduled hours
+    const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const
+    const todayDayName = dayNames[new Date().getDay()] as keyof ScheduleDay
+    if (todayDayName !== 'sunday' && todayDayName !== 'saturday') {
+      // Check for override this week first
+      const monday = new Date()
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+      const weekStart = monday.toISOString().split('T')[0]
+      const { data: override } = await supabase.from('schedule_overrides').select('*').eq('user_id', user.id).eq('week_start', weekStart).single()
+      if (override && override[todayDayName]) {
+        setTodayHours(override[todayDayName])
+      } else if (schedDefaultRes.data && schedDefaultRes.data[todayDayName]) {
+        setTodayHours(schedDefaultRes.data[todayDayName])
+      } else {
+        setTodayHours(null)
+      }
+    }
 
     if (prodMembersRes.data && prodMembersRes.data.length > 0) {
       const ids = prodMembersRes.data.map((p: { production_id: string }) => p.production_id)
@@ -117,6 +143,16 @@ export default function DashboardPage() {
 
   const overdueCount = myTasks.filter(t => t.due_date && new Date(t.due_date) < new Date()).length
   const urgentCount = myTasks.filter(t => t.priority === 'high' || t.priority === 'day of').length
+
+  const completeTask = async (taskId: string) => {
+    setCompleting(prev => new Set(prev).add(taskId))
+    await supabase.from('tasks').update({ status: 'complete', completed_at: new Date().toISOString() }).eq('id', taskId)
+    setTimeout(() => {
+      setMyTasks(prev => prev.filter(t => t.id !== taskId))
+      setAllTasks(prev => prev.filter(t => t.id !== taskId))
+      setCompleting(prev => { const n = new Set(prev); n.delete(taskId); return n })
+    }, 400)
+  }
   const nextDue = myTasks.find(t => t.due_date) || null
   const nextDueInfo = nextDue ? formatDate(nextDue.due_date) : null
 
@@ -143,6 +179,36 @@ export default function DashboardPage() {
         <h1 style={{ fontSize: '28px', fontWeight: 700, color: text, margin: '0 0 4px' }}>{greeting()}, {currentUser?.name?.split(' ')[0]}</h1>
         <p style={{ fontSize: '14px', color: muted, margin: '0 0 6px' }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
         <p style={{ fontSize: '14px', color: urgentCount > 0 || overdueCount > 0 ? '#f59e0b' : muted, margin: 0 }}>{getMorningBriefing()}</p>
+      </div>
+
+      {/* Your day at a glance */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: cardBg, border: `1px solid ${border}`, borderRadius: '10px', padding: '10px 16px' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span style={{ fontSize: '14px', color: todayHours ? text : muted, fontWeight: todayHours ? 500 : 400 }}>
+            {todayHours || 'No hours set'}
+          </span>
+        </div>
+        {myTasks.filter(t => t.due_date && new Date(t.due_date).toDateString() === new Date().toDateString()).length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '10px', padding: '10px 16px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            <span style={{ fontSize: '14px', color: '#f59e0b', fontWeight: 500 }}>
+              {myTasks.filter(t => t.due_date && new Date(t.due_date).toDateString() === new Date().toDateString()).length} due today
+            </span>
+          </div>
+        )}
+        {overdueCount > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', padding: '10px 16px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: 500 }}>{overdueCount} overdue</span>
+          </div>
+        )}
+        {todayProductions.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(30,108,181,0.08)', border: '1px solid rgba(30,108,181,0.2)', borderRadius: '10px', padding: '10px 16px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5ba3e0" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            <span style={{ fontSize: '14px', color: '#5ba3e0', fontWeight: 500 }}>{todayProductions.length} production{todayProductions.length > 1 ? 's' : ''} today</span>
+          </div>
+        )}
       </div>
 
       {/* Today's productions */}
@@ -228,21 +294,26 @@ export default function DashboardPage() {
                   </div>
                 ) : myTasks.map((task, i) => {
                   const dateInfo = formatDate(task.due_date)
+                  const isCompleting = completing.has(task.id)
                   return (
-                    <Link key={task.id} href="/dashboard/tasks" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px', borderBottom: i < myTasks.length - 1 ? `1px solid ${border}` : 'none', transition: 'background 0.1s' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = rowHover}
-                      onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
+                    <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px', borderBottom: i < myTasks.length - 1 ? `1px solid ${border}` : 'none', transition: 'all 0.3s', opacity: isCompleting ? 0.4 : 1, background: isCompleting ? 'rgba(34,197,94,0.06)' : 'transparent' }}
+                      onMouseEnter={e => { if (!isCompleting) (e.currentTarget as HTMLDivElement).style.background = rowHover }}
+                      onMouseLeave={e => { if (!isCompleting) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
                     >
-                      <div style={{ width: '18px', height: '18px', borderRadius: '5px', border: `2px solid ${task.status === 'in progress' ? '#f59e0b' : border}`, flexShrink: 0, background: task.status === 'in progress' ? 'rgba(245,158,11,0.12)' : 'transparent' }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.title}</p>
-                        {task.productions && <p style={{ fontSize: '14px', color: muted, margin: '3px 0 0' }}>{task.productions.title}</p>}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-                        {statusBadge(task.status)}
-                        {dateInfo && <span style={{ fontSize: '13px', color: dateInfo.color, fontWeight: 700 }}>{dateInfo.label}</span>}
-                      </div>
-                    </Link>
+                      <button onClick={() => !isCompleting && completeTask(task.id)} style={{ width: '18px', height: '18px', borderRadius: '5px', border: `2px solid ${isCompleting ? '#22c55e' : task.status === 'in progress' ? '#f59e0b' : border}`, flexShrink: 0, background: isCompleting ? '#22c55e' : task.status === 'in progress' ? 'rgba(245,158,11,0.12)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                        {isCompleting && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                      </button>
+                      <Link href="/dashboard/tasks" style={{ flex: 1, minWidth: 0, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{task.title}</p>
+                          {task.productions && <p style={{ fontSize: '14px', color: muted, margin: '3px 0 0' }}>{task.productions.title}</p>}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+                          {statusBadge(task.status)}
+                          {dateInfo && <span style={{ fontSize: '13px', color: dateInfo.color, fontWeight: 700 }}>{dateInfo.label}</span>}
+                        </div>
+                      </Link>
+                    </div>
                   )
                 })}
               </div>
@@ -336,6 +407,36 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recent activity */}
+      {recentActivity.length > 0 && (
+        <div style={{ marginTop: '20px' }}>
+          <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden' }}>
+            <div style={{ padding: '18px 20px', borderBottom: `1px solid ${border}` }}>
+              <h2 style={{ fontSize: '17px', fontWeight: 700, color: text, margin: 0 }}>Recent activity</h2>
+            </div>
+            {recentActivity.map((a, i) => {
+              const time = new Date(a.created_at)
+              const diff = Date.now() - time.getTime()
+              const mins = Math.floor(diff / 60000)
+              const hrs = Math.floor(mins / 60)
+              const days = Math.floor(hrs / 24)
+              const ago = days > 0 ? `${days}d ago` : hrs > 0 ? `${hrs}h ago` : mins > 0 ? `${mins}m ago` : 'just now'
+              return (
+                <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 20px', borderBottom: i < recentActivity.length - 1 ? `1px solid ${border}` : 'none', fontSize: '13px' }}>
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#5ba3e0', marginTop: '6px', flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ color: text, fontWeight: 500 }}>{a.team?.name || 'System'}</span>
+                    <span style={{ color: muted }}> {a.action}</span>
+                    {a.detail && <span style={{ color: muted }}> — {a.detail}</span>}
+                  </div>
+                  <span style={{ color: muted, flexShrink: 0, fontSize: '12px' }}>{ago}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

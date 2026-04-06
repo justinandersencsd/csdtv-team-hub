@@ -48,6 +48,7 @@ function ProductionsPageContent() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [lastSync, setLastSync] = useState<string | null>(null)
   const [view, setView] = useState<'pipeline' | 'list'>('pipeline')
   const [scope, setScope] = useState<'all' | 'mine' | 'unassigned'>(searchParams.get('scope') === 'mine' ? 'mine' : searchParams.get('scope') === 'unassigned' ? 'unassigned' : 'all')
@@ -129,8 +130,9 @@ function ProductionsPageContent() {
       getTypeLabel(p).toLowerCase().includes(search.toLowerCase()) ||
       String(p.production_number).includes(search)
     const matchType = typeFilter === 'all' || getTypeLabel(p) === typeFilter
+    const matchStatus = statusFilter === 'all' || p.status === statusFilter
     const matchScope = scope === 'all' || (scope === 'mine' && currentUserId && (p.production_members || []).some(m => m.user_id === currentUserId)) || (scope === 'unassigned' && (p.production_members || []).length === 0)
-    return matchSearch && matchType && matchScope
+    return matchSearch && matchType && matchStatus && matchScope
   })
 
   const pipeline    = filtered.filter(p => STATUS_GROUPS.pipeline.includes(p.status || ''))
@@ -323,6 +325,20 @@ function ProductionsPageContent() {
           <option value="all">All types</option>
           {allTypes.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
+        {view === 'list' && (
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '10px 14px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', minHeight: '44px', cursor: 'pointer' }}
+          >
+            <option value="all">All statuses</option>
+            <option value="Idea/Request">Idea/Request</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Approved/Scheduled">Approved/Scheduled</option>
+            <option value="Complete">Complete</option>
+            <option value="Abandoned">Abandoned</option>
+          </select>
+        )}
         <div style={{ display: 'flex', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', overflow: 'hidden' }}>
           {(['pipeline', 'list'] as const).map(v => (
             <button

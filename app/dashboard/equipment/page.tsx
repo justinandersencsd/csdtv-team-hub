@@ -97,6 +97,11 @@ export default function EquipmentPage() {
   const [borrowerInfo, setBorrowerInfo] = useState('')
   const [dueDate, setDueDate] = useState('')
 
+  // Add item form
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addForm, setAddForm] = useState({ asset_tag: '', name: '', brand: '', model: '', serial_number: '', category_id: '', subcategory_id: '', site: 'Office', condition: 'Good', notes: '' })
+  const [addSaving, setAddSaving] = useState(false)
+
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
@@ -123,6 +128,34 @@ export default function EquipmentPage() {
   }, [supabase])
 
   useEffect(() => { loadData() }, [loadData])
+
+  const saveNewItem = async () => {
+    if (!addForm.asset_tag || !addForm.name || !user) return
+    setAddSaving(true)
+    const tag = addForm.asset_tag.padStart(4, '0')
+    const { data, error } = await supabase.from('equipment').insert({
+      asset_tag: tag,
+      name: addForm.name,
+      brand: addForm.brand || null,
+      model: addForm.model || null,
+      serial_number: addForm.serial_number || null,
+      category_id: addForm.category_id || null,
+      subcategory_id: addForm.subcategory_id || null,
+      site: addForm.site,
+      condition: addForm.condition,
+      status: 'available',
+      notes: addForm.notes || null,
+      photo_url: `/images/equipment/${tag}.png`,
+    }).select('*').single()
+    if (error) { alert('Error: ' + error.message); setAddSaving(false); return }
+    if (data) {
+      await supabase.from('equipment_activity').insert({ equipment_id: data.id, action: 'created', detail: `Added ${addForm.name} (${tag})`, user_id: user.id })
+      setEquipment(prev => [...prev, data].sort((a, b) => a.asset_tag.localeCompare(b.asset_tag)))
+    }
+    setAddForm({ asset_tag: '', name: '', brand: '', model: '', serial_number: '', category_id: '', subcategory_id: '', site: 'Office', condition: 'Good', notes: '' })
+    setShowAddForm(false)
+    setAddSaving(false)
+  }
 
   const topCategories = categories.filter(c => !c.parent_id)
   const getCategoryName = (id: string | null) => {
@@ -245,8 +278,108 @@ export default function EquipmentPage() {
           >
             📷 Scan
           </button>
+          {isManager && (
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              style={{
+                background: '#1e6cb5', border: 'none', borderRadius: '10px',
+                padding: '10px 16px', fontSize: '14px', color: '#fff', cursor: 'pointer',
+                fontFamily: 'inherit', fontWeight: 600, minHeight: '44px', display: 'flex', alignItems: 'center', gap: '6px',
+              }}
+            >
+              + Add item
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Add item form */}
+      {showAddForm && (
+        <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 600, color: text, margin: '0 0 16px' }}>Add new equipment</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Asset tag *</label>
+              <input value={addForm.asset_tag} onChange={e => setAddForm(f => ({ ...f, asset_tag: e.target.value.replace(/\D/g, '').slice(0, 4) }))} placeholder="0000" inputMode="numeric"
+                style={{ width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' as const }} />
+            </div>
+            <div style={{ gridColumn: 'span 2' }}>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Name *</label>
+              <input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Canon EOS R5"
+                style={{ width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Brand</label>
+              <input value={addForm.brand} onChange={e => setAddForm(f => ({ ...f, brand: e.target.value }))} placeholder="Canon"
+                style={{ width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Model</label>
+              <input value={addForm.model} onChange={e => setAddForm(f => ({ ...f, model: e.target.value }))} placeholder="EOS R5"
+                style={{ width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Serial number</label>
+              <input value={addForm.serial_number} onChange={e => setAddForm(f => ({ ...f, serial_number: e.target.value }))} placeholder="Optional"
+                style={{ width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Category</label>
+              <select value={addForm.category_id} onChange={e => setAddForm(f => ({ ...f, category_id: e.target.value, subcategory_id: '' }))}
+                style={{ width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }}>
+                <option value="">None</option>
+                {topCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            {addForm.category_id && categories.filter(c => c.parent_id === addForm.category_id).length > 0 && (
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Subcategory</label>
+                <select value={addForm.subcategory_id} onChange={e => setAddForm(f => ({ ...f, subcategory_id: e.target.value }))}
+                  style={{ width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }}>
+                  <option value="">None</option>
+                  {categories.filter(c => c.parent_id === addForm.category_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Site</label>
+              <select value={addForm.site} onChange={e => setAddForm(f => ({ ...f, site: e.target.value }))}
+                style={{ width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }}>
+                <option value="Office">Office</option>
+                <option value="Van">Van</option>
+                <option value="Trailer">Trailer</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Condition</label>
+              <select value={addForm.condition} onChange={e => setAddForm(f => ({ ...f, condition: e.target.value }))}
+                style={{ width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }}>
+                <option value="Good">Good</option>
+                <option value="Fair">Fair</option>
+                <option value="Needs Repair">Needs Repair</option>
+                <option value="Damaged">Damaged</option>
+                <option value="Broken">Broken</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Notes</label>
+            <textarea value={addForm.notes} onChange={e => setAddForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional notes"
+              style={{ width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const, minHeight: '60px', resize: 'vertical' as const }} />
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={saveNewItem} disabled={!addForm.asset_tag || !addForm.name || addSaving}
+              style={{ padding: '10px 20px', borderRadius: '8px', background: addForm.asset_tag && addForm.name ? '#1e6cb5' : (dark ? '#1a2540' : '#e2e8f0'), color: addForm.asset_tag && addForm.name ? '#fff' : muted, border: 'none', cursor: addForm.asset_tag && addForm.name ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: '14px', fontWeight: 500 }}>
+              {addSaving ? 'Saving...' : 'Save item'}
+            </button>
+            <button onClick={() => setShowAddForm(false)}
+              style={{ padding: '10px 20px', borderRadius: '8px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: '14px' }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '20px' }}>
