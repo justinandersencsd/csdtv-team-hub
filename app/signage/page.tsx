@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
+import { getSchoolName } from '@/lib/schools'
 
 interface Production {
   id: string; production_number: number; title: string
   request_type_label: string | null; status: string | null; school_year: string | null
-  start_datetime: string | null; filming_location: string | null
+  start_datetime: string | null; filming_location: string | null; school_department: string | null
   production_members?: { user_id: string; team: { name: string; avatar_color: string } | null }[]
 }
 interface TeamMember { id: string; name: string; avatar_color: string; role: string }
@@ -49,7 +50,7 @@ export default function SignagePage() {
 
   const loadData = useCallback(async () => {
     const [prodsRes, teamRes, defsRes, ovrsRes] = await Promise.all([
-      supabase.from('productions').select('id, production_number, title, request_type_label, status, school_year, start_datetime, filming_location, production_members(user_id, team(name, avatar_color))').not('start_datetime', 'is', null).order('start_datetime'),
+      supabase.from('productions').select('id, production_number, title, request_type_label, status, school_year, start_datetime, filming_location, school_department, production_members(user_id, team(name, avatar_color))').not('start_datetime', 'is', null).order('start_datetime'),
       supabase.from('team').select('id, name, avatar_color, role').eq('active', true),
       supabase.from('schedule_defaults').select('*'),
       supabase.from('schedule_overrides').select('*'),
@@ -208,7 +209,7 @@ export default function SignagePage() {
                     <div style={{ fontSize: '14px', color: typeColor, fontWeight: 600, marginBottom: '2px' }}>{TYPE_SHORT[p.request_type_label || ''] || 'Production'}</div>
                     <div style={{ fontSize: '15px', color: '#ccd5e8' }}>
                       {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                      {p.filming_location ? ` · ${p.filming_location}` : ''}
+                      {(() => { const loc = getSchoolName(p.school_department) || p.filming_location; return loc ? ` · ${loc}` : '' })()}
                     </div>
                     {members.length > 0 && (
                       <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
@@ -278,6 +279,9 @@ export default function SignagePage() {
                     borderRadius: '8px', padding: '4px 5px', overflow: 'hidden' as const,
                     opacity: cellOpacity, display: 'flex', flexDirection: 'column' as const,
                   }}>
+                    <div style={{ fontSize: '13px', color: todayCell ? '#60b8f0' : '#ccd5e8', fontWeight: todayCell ? 800 : 500, textAlign: 'right' as const, padding: '0 2px', marginBottom: '2px', lineHeight: 1 }}>
+                      {date.getDate()}
+                    </div>
                     <div style={{ flex: 1, overflow: 'hidden' as const }}>
                       {dayProds.slice(0, 2).map(p => {
                         const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#94a3b8'
@@ -287,7 +291,7 @@ export default function SignagePage() {
                         const isActive = p.status === 'In Progress'
                         const d = p.start_datetime ? new Date(p.start_datetime) : null
                         const timeStr = d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
-                        const locShort = p.filming_location ? (p.filming_location.length > 28 ? p.filming_location.slice(0, 26) + '...' : p.filming_location) : ''
+                        const location = getSchoolName(p.school_department) || p.filming_location || ''
                         return (
                           <div key={p.id} style={{
                             padding: '4px 5px', marginBottom: '3px', borderRadius: '4px',
@@ -300,9 +304,9 @@ export default function SignagePage() {
                               <span style={{ fontSize: '13px', fontWeight: isActive ? 700 : 600, color: isComplete ? dimmed : typeColor, flex: 1, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>{p.title}</span>
                               {initials && <span style={{ fontSize: '10px', color: isComplete ? dimmed : muted, flexShrink: 0, fontWeight: 600 }}>{initials}</span>}
                             </div>
-                            {(timeStr || locShort) && (
+                            {(timeStr || location) && (
                               <div style={{ fontSize: '11px', color: '#9ab0cc', marginTop: '1px', overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>
-                                {timeStr}{timeStr && locShort ? ' · ' : ''}{locShort}
+                                {timeStr}{timeStr && location ? ' · ' : ''}{location}
                               </div>
                             )}
                           </div>
