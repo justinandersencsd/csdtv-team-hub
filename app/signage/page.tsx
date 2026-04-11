@@ -114,7 +114,7 @@ export default function SignagePage() {
   const thisWeekProds = productions.filter(p => { if (!p.start_datetime) return false; const d = new Date(p.start_datetime); return d >= sunday && d < endOfWeek })
   const thisWeekByType = thisWeekProds.reduce((acc, p) => { const t = TYPE_SHORT[p.request_type_label || ''] || 'Other'; acc[t] = (acc[t] || 0) + 1; return acc }, {} as Record<string, number>)
 
-  const currentSchoolYear = (() => { const m = now.getMonth(); const y = now.getFullYear(); return m >= 7 ? `${y}-${y + 1}` : `${y - 1}-${y}` })()
+  const currentSchoolYear = (() => { const m = now.getMonth(); const y = now.getFullYear(); return m >= 7 ? `${y + 1}` : `${y}` })()
   const ytdCompleted = productions.filter(p => p.status === 'Complete' && p.school_year === currentSchoolYear).length
   const ytdTotal = productions.filter(p => p.school_year === currentSchoolYear).length
 
@@ -275,7 +275,7 @@ export default function SignagePage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, gap: '3px' }}>
           {weeks.map((weekDates, wi) => (
             <div key={wi} style={{ display: 'grid', gridTemplateColumns: GRID_COLS, gap: '3px', flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: wi === 0 ? '#60b8f0' : muted, textAlign: 'center' as const, padding: '4px', background: wi === 0 ? 'rgba(96,184,240,0.08)' : 'transparent' as const, borderRadius: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: wi === 0 ? '#60b8f0' : muted, textAlign: 'center' as const, padding: '8px 4px', background: wi === 0 ? 'rgba(96,184,240,0.08)' : 'transparent' as const, borderRadius: '6px' }}>
                 {weekLabel(weekDates)}
               </div>
               {weekDates.map((date, di) => {
@@ -289,14 +289,14 @@ export default function SignagePage() {
                   <div key={di} style={{
                     background: todayCell ? 'rgba(96,184,240,0.12)' : isWeekend ? 'rgba(255,255,255,0.015)' : cardBg,
                     border: todayCell ? '2px solid #60b8f0' : `1px solid ${border}`,
-                    borderRadius: '8px', padding: '4px 5px', overflow: 'hidden' as const,
+                    borderRadius: '8px', padding: '3px 4px',
                     opacity: cellOpacity, display: 'flex', flexDirection: 'column' as const,
                   }}>
-                    <div style={{ fontSize: '13px', color: todayCell ? '#60b8f0' : '#ccd5e8', fontWeight: todayCell ? 800 : 500, textAlign: 'right' as const, padding: '0 2px', marginBottom: '2px', lineHeight: 1 }}>
+                    <div style={{ fontSize: '12px', color: todayCell ? '#60b8f0' : '#ccd5e8', fontWeight: todayCell ? 800 : 500, textAlign: 'right' as const, padding: '0 2px', marginBottom: '1px', lineHeight: 1 }}>
                       {date.getDate()}
                     </div>
-                    <div style={{ flex: 1, overflow: 'hidden' as const }}>
-                      {dayProds.slice(0, 2).map(p => {
+                    <div style={{ flex: 1 }}>
+                      {dayProds.map(p => {
                         const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#94a3b8'
                         const members = p.production_members || []
                         const initials = members.map(m => m.team ? getInitials(m.team.name) : '').filter(Boolean).join(' ')
@@ -307,25 +307,24 @@ export default function SignagePage() {
                         const location = getSchoolName(p.school_department) || p.filming_location || ''
                         return (
                           <div key={p.id} style={{
-                            padding: '4px 5px', marginBottom: '3px', borderRadius: '4px',
+                            padding: '3px 4px', marginBottom: '2px', borderRadius: '4px',
                             background: isComplete ? 'rgba(255,255,255,0.03)' : `${typeColor}20`,
                             borderLeft: `3px solid ${isComplete ? '#555' : typeColor}`,
                             opacity: isComplete ? 0.45 : 1,
                             textDecoration: isComplete ? 'line-through' : 'none',
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <span style={{ fontSize: '13px', fontWeight: isActive ? 700 : 600, color: isComplete ? dimmed : typeColor, flex: 1, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>{p.title}</span>
-                              {initials && <span style={{ fontSize: '10px', color: isComplete ? dimmed : muted, flexShrink: 0, fontWeight: 600 }}>{initials}</span>}
+                              <span style={{ fontSize: '12px', fontWeight: isActive ? 700 : 600, color: isComplete ? dimmed : typeColor, flex: 1, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>{p.title}</span>
+                              {initials && <span style={{ fontSize: '9px', color: isComplete ? dimmed : muted, flexShrink: 0, fontWeight: 600 }}>{initials}</span>}
                             </div>
                             {(timeStr || location) && (
-                              <div style={{ fontSize: '11px', color: '#9ab0cc', marginTop: '1px', overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>
+                              <div style={{ fontSize: '10px', color: '#8aa0bc', marginTop: '0px', overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>
                                 {timeStr}{timeStr && location ? ' · ' : ''}{location}
                               </div>
                             )}
                           </div>
                         )
                       })}
-                      {dayProds.length > 2 && <div style={{ fontSize: '12px', color: muted, padding: '1px 4px', fontWeight: 600 }}>+{dayProds.length - 2}</div>}
                     </div>
                   </div>
                 )
