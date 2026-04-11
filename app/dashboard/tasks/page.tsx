@@ -5,11 +5,15 @@ import { createClient } from '@/lib/supabase'
 import { useTheme } from '@/lib/theme'
 import Link from 'next/link'
 import Loader from '../components/Loader'
+import CommentsSection from '../components/CommentsSection'
 
 interface Production {
   id: string; title: string; production_number: number
   request_type_label: string | null; start_datetime: string | null; status: string | null
 }
+
+interface Subtask { id: string; title: string; completed: boolean; sort_order: number }
+interface TimeEntry { id: string; hours: number; description: string | null; date: string; user_id: string; user?: { name: string } | null }
 
 interface Task {
   id: string; title: string; description: string | null; status: string; priority: string
@@ -59,6 +63,13 @@ export default function TasksPage() {
   const [search, setSearch] = useState('')
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list')
+  const [subtasks, setSubtasks] = useState<Subtask[]>([])
+  const [newSubtask, setNewSubtask] = useState('')
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
+  const [newTimeHours, setNewTimeHours] = useState('')
+  const [newTimeDesc, setNewTimeDesc] = useState('')
+  const [detailTab, setDetailTab] = useState<'details' | 'subtasks' | 'time' | 'comments'>('details')
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
@@ -90,8 +101,16 @@ export default function TasksPage() {
 
   const getMember = (id: string | null) => id ? team.find(m => m.id === id) || null : null
 
-  const openTask = (task: Task) => { setSelectedTask(task); setPanelNotes(task.notes || ''); setEditTitle(task.title); setEditDescription(task.description || '') }
-  const closePanel = () => setSelectedTask(null)
+  const openTask = async (task: Task) => {
+    setSelectedTask(task); setPanelNotes(task.notes || ''); setEditTitle(task.title); setEditDescription(task.description || ''); setDetailTab('details')
+    const [subRes, timeRes] = await Promise.all([
+      supabase.from('subtasks').select('*').eq('task_id', task.id).order('sort_order'),
+      supabase.from('time_entries').select('*, user:team!time_entries_user_id_fkey(name)').eq('task_id', task.id).order('date', { ascending: false }),
+    ])
+    setSubtasks(subRes.data || [])
+    setTimeEntries(timeRes.data as any || [])
+  }
+  const closePanel = () => { setSelectedTask(null); setSubtasks([]); setTimeEntries([]) }
 
   const sendAssignEmail = useCallback(async (assigneeId: string, taskTitle: string) => {
     const assignee = team.find(m => m.id === assigneeId)
@@ -209,6 +228,35 @@ export default function TasksPage() {
     setTasks(prev => [{ ...task, status: 'pending', completed_at: null }, ...prev])
   }, [supabase])
 
+  // Subtask management
+  const addSubtask = async () => {
+    if (!newSubtask.trim() || !selectedTask) return
+    const { data } = await supabase.from('subtasks').insert({ task_id: selectedTask.id, title: newSubtask.trim(), sort_order: subtasks.length }).select('*').single()
+    if (data) setSubtasks(prev => [...prev, data])
+    setNewSubtask('')
+  }
+  const toggleSubtask = async (sub: Subtask) => {
+    const updates = { completed: !sub.completed, completed_at: !sub.completed ? new Date().toISOString() : null }
+    await supabase.from('subtasks').update(updates).eq('id', sub.id)
+    setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, ...updates } : s))
+  }
+  const removeSubtask = async (id: string) => {
+    await supabase.from('subtasks').delete().eq('id', id)
+    setSubtasks(prev => prev.filter(s => s.id !== id))
+  }
+
+  // Time entry management
+  const addTimeEntry = async () => {
+    if (!newTimeHours || !selectedTask || !currentUser) return
+    const { data } = await supabase.from('time_entries').insert({ task_id: selectedTask.id, user_id: currentUser.id, hours: parseFloat(newTimeHours), description: newTimeDesc || null }).select('*, user:team!time_entries_user_id_fkey(name)').single()
+    if (data) setTimeEntries(prev => [data as any, ...prev])
+    setNewTimeHours(''); setNewTimeDesc('')
+  }
+  const removeTimeEntry = async (id: string) => {
+    await supabase.from('time_entries').delete().eq('id', id)
+    setTimeEntries(prev => prev.filter(e => e.id !== id))
+  }
+
   const formatDate = (d: string | null): { label: string; color: string } | null => {
     if (!d) return null
     const date = new Date(d), today = new Date()
@@ -294,13 +342,25 @@ export default function TasksPage() {
           </button>
         </div>
 
-        {/* Tabs: Open / Completed */}
-        <div style={{ display: 'flex', borderBottom: `0.5px solid ${border}`, marginBottom: '16px' }}>
+        {/* Tabs: Open / Completed + View toggle */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `0.5px solid ${border}`, marginBottom: '16px' }}>
+          <div style={{ display: 'flex' }}>
           {([['open', `Open (${openCount})`], ['completed', `Completed (${completedTasks.length})`]] as const).map(([tab, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={{ fontSize: '14px', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', color: activeTab === tab ? '#5ba3e0' : muted, borderBottom: activeTab === tab ? '2px solid #1e6cb5' : '2px solid transparent', fontWeight: activeTab === tab ? 500 : 400 }}>
               {label}
             </button>
           ))}
+          </div>
+          {activeTab === 'open' && (
+            <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+              <button onClick={() => setViewMode('list')} style={{ padding: '6px 10px', background: viewMode === 'list' ? (dark ? 'rgba(255,255,255,0.08)' : '#e2e8f0') : 'transparent', border: 'none', borderRadius: '6px', cursor: 'pointer', color: viewMode === 'list' ? text : muted }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+              <button onClick={() => setViewMode('kanban')} style={{ padding: '6px 10px', background: viewMode === 'kanban' ? (dark ? 'rgba(255,255,255,0.08)' : '#e2e8f0') : 'transparent', border: 'none', borderRadius: '6px', cursor: 'pointer', color: viewMode === 'kanban' ? text : muted }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="5" height="18"/><rect x="10" y="3" width="5" height="12"/><rect x="17" y="3" width="4" height="15"/></svg>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* New task form */}
@@ -369,6 +429,44 @@ export default function TasksPage() {
               <div style={{ textAlign: 'center', padding: '60px 20px' }}>
                 <p style={{ color: muted, fontSize: '15px' }}>No tasks match your filters</p>
               </div>
+            ) : viewMode === 'kanban' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', minHeight: '300px' }}>
+                {(['pending', 'in progress', 'complete'] as const).map(status => {
+                  const col = filtered.filter(t => t.status === status)
+                  const colStyle = STATUS_STYLES[status] || STATUS_STYLES['pending']
+                  return (
+                    <div key={status} style={{ background: dark ? 'rgba(255,255,255,0.02)' : '#f8fafc', borderRadius: '12px', padding: '12px', border: `0.5px solid ${border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: colStyle.color, textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>{status}</span>
+                        <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '10px', background: colStyle.bg, color: colStyle.color }}>{col.length}</span>
+                      </div>
+                      {col.map(task => {
+                        const dateInfo = formatDate(task.due_date)
+                        const assignee = getMember(task.assigned_to)
+                        return (
+                          <div key={task.id} onClick={() => openTask(task)} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '12px', marginBottom: '8px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#1e6cb5'}
+                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = border}
+                          >
+                            <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: '0 0 6px' }}>
+                              {task.needs_equipment && <span style={{ marginRight: '4px' }}>📦</span>}
+                              {task.recurring && <span style={{ marginRight: '4px', fontSize: '11px' }}>🔁</span>}
+                              {task.title}
+                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {task.priority !== 'normal' && <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: (PRIORITY_STYLES[task.priority] || PRIORITY_STYLES['normal']).bg, color: (PRIORITY_STYLES[task.priority] || PRIORITY_STYLES['normal']).color }}>{task.priority}</span>}
+                                {dateInfo && <span style={{ fontSize: '11px', color: dateInfo.color, fontWeight: 500 }}>{dateInfo.label}</span>}
+                              </div>
+                              {assignee && <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: assignee.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 700, color: '#0a0f1e' }}>{assignee.name.slice(0, 2).toUpperCase()}</div>}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
             ) : grouped().map(({ label, tasks: groupTasks }) => (
               <div key={label || 'all'} style={{ marginBottom: '16px' }}>
                 {label && (
@@ -398,6 +496,7 @@ export default function TasksPage() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: '15px', color: isCompleting ? muted : text, margin: 0, fontWeight: 500, textDecoration: isCompleting ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                             {task.needs_equipment && <span style={{ marginRight: '5px' }}>📦</span>}
+                            {task.recurring && <span style={{ marginRight: '5px', fontSize: '12px' }}>🔁</span>}
                             {task.title}
                           </p>
                           {task.productions?.title && <p style={{ fontSize: '13px', color: '#5ba3e0', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>🎬 #{task.productions.production_number} {task.productions.title}</p>}
@@ -466,97 +565,181 @@ export default function TasksPage() {
 
       {/* Detail panel */}
       {selectedTask && (
-        <div style={{ width: '360px', flexShrink: 0, position: 'sticky', top: '80px', background: panelBg, border: `0.5px solid ${border}`, borderRadius: '14px', maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: `0.5px solid ${border}` }}>
+        <div style={{ width: '380px', flexShrink: 0, position: 'sticky', top: '80px', background: panelBg, border: `0.5px solid ${border}`, borderRadius: '14px', maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: `0.5px solid ${border}` }}>
             <span style={{ fontSize: '13px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Task detail</span>
             <button onClick={closePanel} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
           </div>
-          <div style={{ padding: '18px' }}>
-            <input value={editTitle} onChange={e => setEditTitle(e.target.value)} onBlur={() => { if (editTitle !== selectedTask.title) updateTask(selectedTask.id, { title: editTitle }) }} style={{ fontSize: '17px', fontWeight: 600, color: text, margin: '0 0 18px', lineHeight: 1.3, background: 'transparent', border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 10px', width: '100%', boxSizing: 'border-box' as const, fontFamily: 'inherit', outline: 'none' }} />
 
-            {selectedTask.productions && (
-              <div style={{ background: dark ? 'rgba(91,163,224,0.08)' : 'rgba(30,108,181,0.06)', border: '0.5px solid rgba(30,108,181,0.2)', borderRadius: '10px', padding: '13px', marginBottom: '18px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: '12px', color: '#5ba3e0', fontWeight: 700, margin: '0 0 4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>🎬 Linked production</p>
-                    <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>#{selectedTask.productions.production_number} — {selectedTask.productions.title}</p>
-                    {selectedTask.productions.request_type_label && <p style={{ fontSize: '13px', color: muted, margin: '0 0 6px' }}>{selectedTask.productions.request_type_label}</p>}
-                    {selectedTask.productions.start_datetime && <p style={{ fontSize: '13px', color: muted, margin: '0 0 4px' }}>📅 {formatEventDate(selectedTask.productions.start_datetime)}</p>}
-                    {(() => { const c = eventCountdown(selectedTask.productions.start_datetime); return c ? <p style={{ fontSize: '13px', fontWeight: 600, color: c.color, margin: 0 }}>⏱ {c.label}</p> : null })()}
+          {/* Title */}
+          <div style={{ padding: '14px 18px 0' }}>
+            <input value={editTitle} onChange={e => setEditTitle(e.target.value)} onBlur={() => { if (editTitle !== selectedTask.title) updateTask(selectedTask.id, { title: editTitle }) }} style={{ fontSize: '17px', fontWeight: 600, color: text, margin: '0 0 10px', lineHeight: 1.3, background: 'transparent', border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 10px', width: '100%', boxSizing: 'border-box' as const, fontFamily: 'inherit', outline: 'none' }} />
+          </div>
+
+          {/* Panel tabs */}
+          <div style={{ display: 'flex', borderBottom: `0.5px solid ${border}`, padding: '0 18px' }}>
+            {([['details', 'Details'], ['subtasks', `Subtasks (${subtasks.length})`], ['time', 'Time'], ['comments', 'Comments']] as const).map(([key, label]) => (
+              <button key={key} onClick={() => setDetailTab(key as any)} style={{ fontSize: '12px', padding: '8px 10px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', color: detailTab === key ? '#5ba3e0' : muted, borderBottom: detailTab === key ? '2px solid #1e6cb5' : '2px solid transparent', fontWeight: detailTab === key ? 600 : 400 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ padding: '14px 18px' }}>
+
+            {/* DETAILS TAB */}
+            {detailTab === 'details' && (
+              <div>
+                {selectedTask.productions && (
+                  <div style={{ background: dark ? 'rgba(91,163,224,0.08)' : 'rgba(30,108,181,0.06)', border: '0.5px solid rgba(30,108,181,0.2)', borderRadius: '10px', padding: '13px', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '12px', color: '#5ba3e0', fontWeight: 700, margin: '0 0 4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>🎬 Linked production</p>
+                        <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>#{selectedTask.productions.production_number} — {selectedTask.productions.title}</p>
+                        {selectedTask.productions.request_type_label && <p style={{ fontSize: '13px', color: muted, margin: '0 0 6px' }}>{selectedTask.productions.request_type_label}</p>}
+                        {selectedTask.productions.start_datetime && <p style={{ fontSize: '13px', color: muted, margin: '0 0 4px' }}>📅 {formatEventDate(selectedTask.productions.start_datetime)}</p>}
+                        {(() => { const c = eventCountdown(selectedTask.productions.start_datetime); return c ? <p style={{ fontSize: '13px', fontWeight: 600, color: c.color, margin: 0 }}>⏱ {c.label}</p> : null })()}
+                      </div>
+                      <Link href={`/dashboard/productions/${selectedTask.productions.production_number}`} style={{ fontSize: '13px', color: '#5ba3e0', textDecoration: 'none', padding: '5px 12px', borderRadius: '6px', border: '0.5px solid rgba(30,108,181,0.3)', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>Open →</Link>
+                    </div>
                   </div>
-                  {/* FIX: use production_number not UUID */}
-                  <Link href={`/dashboard/productions/${selectedTask.productions.production_number}`} style={{ fontSize: '13px', color: '#5ba3e0', textDecoration: 'none', padding: '5px 12px', borderRadius: '6px', border: '0.5px solid rgba(30,108,181,0.3)', whiteSpace: 'nowrap' as const, flexShrink: 0 }}>Open →</Link>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                  <div>
+                    <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Status</p>
+                    <select value={selectedTask.status} onChange={e => updateTask(selectedTask.id, { status: e.target.value })} style={{ ...inputStyle, fontSize: '14px' }}>
+                      <option value="pending">Pending</option>
+                      <option value="in progress">In progress</option>
+                      <option value="complete">Complete</option>
+                    </select>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Priority</p>
+                    <select value={selectedTask.priority} onChange={e => updateTask(selectedTask.id, { priority: e.target.value })} style={{ ...inputStyle, fontSize: '14px' }}>
+                      {PRIORITIES.map(p => <option key={p} value={p}>{p === 'day of' ? 'Day of event' : p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '14px' }}>
+                  <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Assigned to</p>
+                  <select value={selectedTask.assigned_to || ''} onChange={e => updateTask(selectedTask.id, { assigned_to: e.target.value || null })} style={{ ...inputStyle, fontSize: '14px' }}>
+                    <option value="">Unassigned</option>
+                    {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: '14px' }}>
+                  <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Due date</p>
+                  <input type="date" value={selectedTask.due_date || ''} onChange={e => updateTask(selectedTask.id, { due_date: e.target.value || null })} style={{ ...inputStyle, fontSize: '14px' }} />
+                </div>
+
+                <div style={{ marginBottom: '14px' }}>
+                  <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Link to production</p>
+                  <select value={selectedTask.production_id || ''} onChange={e => {
+                    const newProdId = e.target.value || null
+                    const linkedProd = newProdId ? allProductions.find(p => p.id === newProdId) || null : null
+                    updateTask(selectedTask.id, { production_id: newProdId } as Partial<Task>)
+                    setSelectedTask(prev => prev ? { ...prev, production_id: newProdId, productions: linkedProd } : prev)
+                  }} style={{ ...inputStyle, fontSize: '14px' }}>
+                    <option value="">No production linked</option>
+                    {allProductions.map(p => <option key={p.id} value={p.id}>#{p.production_number} — {p.title}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', padding: '11px 13px', background: selectedTask.needs_equipment ? 'rgba(249,115,22,0.1)' : inputBg, borderRadius: '8px', border: `0.5px solid ${selectedTask.needs_equipment ? 'rgba(249,115,22,0.3)' : border}`, cursor: 'pointer' }}
+                  onClick={() => updateTask(selectedTask.id, { needs_equipment: !selectedTask.needs_equipment })}>
+                  <input type="checkbox" checked={selectedTask.needs_equipment} onChange={() => {}} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                  <span style={{ fontSize: '14px', color: selectedTask.needs_equipment ? '#f97316' : muted, fontWeight: selectedTask.needs_equipment ? 600 : 400 }}>📦 Needs equipment pulled</span>
+                </div>
+
+                <div style={{ marginBottom: '14px' }}>
+                  <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Description</p>
+                  <textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} onBlur={() => { if (editDescription !== (selectedTask.description || '')) updateTask(selectedTask.id, { description: editDescription || null }) }} placeholder="Add a description..." style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' as const, lineHeight: 1.5 }} />
+                </div>
+
+                <div style={{ marginBottom: '14px' }}>
+                  <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Notes</p>
+                  <textarea value={panelNotes} onChange={e => setPanelNotes(e.target.value)} placeholder="Add internal notes..." style={{ ...inputStyle, minHeight: '70px', resize: 'vertical' as const, lineHeight: 1.5, marginBottom: '8px' }} />
+                  <button onClick={saveNotes} disabled={savingNotes} style={{ fontSize: '14px', padding: '8px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: savingNotes ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+                    {savingNotes ? 'Saving...' : 'Save notes'}
+                  </button>
+                </div>
+
+                <div style={{ borderTop: `0.5px solid ${border}`, paddingTop: '14px' }}>
+                  <button onClick={() => deleteTask(selectedTask.id)} style={{ fontSize: '13px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '0.5px solid rgba(239,68,68,0.2)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, width: '100%' }}>
+                    Delete task
+                  </button>
                 </div>
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+            {/* SUBTASKS TAB */}
+            {detailTab === 'subtasks' && (
               <div>
-                <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Status</p>
-                <select value={selectedTask.status} onChange={e => updateTask(selectedTask.id, { status: e.target.value })} style={{ ...inputStyle, fontSize: '14px' }}>
-                  <option value="pending">Pending</option>
-                  <option value="in progress">In progress</option>
-                  <option value="complete">Complete</option>
-                </select>
+                {subtasks.length === 0 && <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '16px 0' }}>No subtasks yet</p>}
+                {subtasks.map(sub => (
+                  <div key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: `0.5px solid ${border}` }}>
+                    <button onClick={() => toggleSubtask(sub)} style={{ width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0, border: `1.5px solid ${sub.completed ? '#22c55e' : border}`, background: sub.completed ? '#22c55e' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {sub.completed && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                    </button>
+                    <span style={{ flex: 1, fontSize: '14px', color: sub.completed ? muted : text, textDecoration: sub.completed ? 'line-through' : 'none' }}>{sub.title}</span>
+                    <button onClick={() => removeSubtask(sub.id)} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '16px', lineHeight: 1, opacity: 0.5 }}>×</button>
+                  </div>
+                ))}
+                {subtasks.length > 0 && (
+                  <p style={{ fontSize: '12px', color: muted, margin: '10px 0 0' }}>{subtasks.filter(s => s.completed).length} of {subtasks.length} done</p>
+                )}
+                <div style={{ display: 'flex', gap: '6px', marginTop: '14px' }}>
+                  <input value={newSubtask} onChange={e => setNewSubtask(e.target.value)} onKeyDown={e => e.key === 'Enter' && addSubtask()} placeholder="Add a subtask..." style={{ ...inputStyle, flex: 1, fontSize: '13px', padding: '8px 10px' }} />
+                  <button onClick={addSubtask} disabled={!newSubtask.trim()} style={{ padding: '8px 14px', borderRadius: '8px', background: newSubtask.trim() ? '#1e6cb5' : (dark ? '#1a2540' : '#e2e8f0'), color: newSubtask.trim() ? '#fff' : muted, border: 'none', cursor: newSubtask.trim() ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: '13px', fontWeight: 500 }}>Add</button>
+                </div>
               </div>
+            )}
+
+            {/* TIME TAB */}
+            {detailTab === 'time' && (
               <div>
-                <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Priority</p>
-                <select value={selectedTask.priority} onChange={e => updateTask(selectedTask.id, { priority: e.target.value })} style={{ ...inputStyle, fontSize: '14px' }}>
-                  {PRIORITIES.map(p => <option key={p} value={p}>{p === 'day of' ? 'Day of event' : p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-                </select>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', alignItems: 'flex-end' }}>
+                  <div style={{ flex: '0 0 70px' }}>
+                    <p style={{ fontSize: '11px', color: muted, margin: '0 0 4px' }}>Hours</p>
+                    <input type="number" step="0.25" min="0" value={newTimeHours} onChange={e => setNewTimeHours(e.target.value)} placeholder="0" style={{ ...inputStyle, fontSize: '14px', padding: '8px 10px', textAlign: 'center' as const }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: '11px', color: muted, margin: '0 0 4px' }}>What did you work on?</p>
+                    <input value={newTimeDesc} onChange={e => setNewTimeDesc(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTimeEntry()} placeholder="Description (optional)" style={{ ...inputStyle, fontSize: '13px', padding: '8px 10px' }} />
+                  </div>
+                  <button onClick={addTimeEntry} disabled={!newTimeHours} style={{ padding: '8px 14px', borderRadius: '8px', background: newTimeHours ? '#1e6cb5' : (dark ? '#1a2540' : '#e2e8f0'), color: newTimeHours ? '#fff' : muted, border: 'none', cursor: newTimeHours ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: '13px', fontWeight: 500, minHeight: '38px' }}>Log</button>
+                </div>
+                {timeEntries.length === 0 ? (
+                  <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '16px 0' }}>No time logged yet</p>
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '13px', color: muted }}>Total logged</span>
+                      <span style={{ fontSize: '15px', fontWeight: 700, color: '#22c55e' }}>{timeEntries.reduce((s, e) => s + Number(e.hours), 0).toFixed(1)}h</span>
+                    </div>
+                    {timeEntries.map(entry => (
+                      <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: `0.5px solid ${border}` }}>
+                        <span style={{ fontSize: '15px', fontWeight: 600, color: text, minWidth: '40px' }}>{Number(entry.hours).toFixed(1)}h</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {entry.description && <p style={{ fontSize: '13px', color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{entry.description}</p>}
+                          <p style={{ fontSize: '11px', color: muted, margin: entry.description ? '2px 0 0' : 0 }}>{(entry.user as any)?.name} · {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                        </div>
+                        <button onClick={() => removeTimeEntry(entry.id)} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '16px', lineHeight: 1, opacity: 0.5 }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
-            <div style={{ marginBottom: '14px' }}>
-              <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Assigned to</p>
-              <select value={selectedTask.assigned_to || ''} onChange={e => updateTask(selectedTask.id, { assigned_to: e.target.value || null })} style={{ ...inputStyle, fontSize: '14px' }}>
-                <option value="">Unassigned</option>
-                {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-            </div>
+            {/* COMMENTS TAB */}
+            {detailTab === 'comments' && (
+              <CommentsSection entityType="task" entityId={selectedTask.id} currentUserId={currentUser?.id || ''} team={team} />
+            )}
 
-            <div style={{ marginBottom: '14px' }}>
-              <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Due date</p>
-              <input type="date" value={selectedTask.due_date || ''} onChange={e => updateTask(selectedTask.id, { due_date: e.target.value || null })} style={{ ...inputStyle, fontSize: '14px' }} />
-            </div>
-
-            <div style={{ marginBottom: '14px' }}>
-              <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Link to production</p>
-              <select value={selectedTask.production_id || ''} onChange={e => {
-                const newProdId = e.target.value || null
-                const linkedProd = newProdId ? allProductions.find(p => p.id === newProdId) || null : null
-                updateTask(selectedTask.id, { production_id: newProdId } as Partial<Task>)
-                setSelectedTask(prev => prev ? { ...prev, production_id: newProdId, productions: linkedProd } : prev)
-              }} style={{ ...inputStyle, fontSize: '14px' }}>
-                <option value="">No production linked</option>
-                {allProductions.map(p => <option key={p.id} value={p.id}>#{p.production_number} — {p.title}</option>)}
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '18px', padding: '11px 13px', background: selectedTask.needs_equipment ? 'rgba(249,115,22,0.1)' : inputBg, borderRadius: '8px', border: `0.5px solid ${selectedTask.needs_equipment ? 'rgba(249,115,22,0.3)' : border}`, cursor: 'pointer' }}
-              onClick={() => updateTask(selectedTask.id, { needs_equipment: !selectedTask.needs_equipment })}>
-              <input type="checkbox" checked={selectedTask.needs_equipment} onChange={() => {}} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-              <span style={{ fontSize: '14px', color: selectedTask.needs_equipment ? '#f97316' : muted, fontWeight: selectedTask.needs_equipment ? 600 : 400 }}>📦 Needs equipment pulled</span>
-            </div>
-
-            <div style={{ marginBottom: '18px' }}>
-              <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Description</p>
-              <textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} onBlur={() => { if (editDescription !== (selectedTask.description || '')) updateTask(selectedTask.id, { description: editDescription || null }) }} placeholder="Add a description..." style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' as const, lineHeight: 1.5 }} />
-            </div>
-
-            <div>
-              <p style={{ fontSize: '12px', color: muted, margin: '0 0 6px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Notes</p>
-              <textarea value={panelNotes} onChange={e => setPanelNotes(e.target.value)} placeholder="Add internal notes..." style={{ ...inputStyle, minHeight: '90px', resize: 'vertical' as const, lineHeight: 1.5, marginBottom: '8px' }} />
-              <button onClick={saveNotes} disabled={savingNotes} style={{ fontSize: '14px', padding: '8px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: savingNotes ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
-                {savingNotes ? 'Saving...' : 'Save notes'}
-              </button>
-            </div>
-
-            <div style={{ borderTop: `0.5px solid ${border}`, paddingTop: '14px', marginTop: '18px' }}>
-              <button onClick={() => deleteTask(selectedTask.id)} style={{ fontSize: '13px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '0.5px solid rgba(239,68,68,0.2)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, width: '100%' }}>
-                Delete task
-              </button>
-            </div>
           </div>
         </div>
       )}

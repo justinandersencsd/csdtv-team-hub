@@ -7,6 +7,7 @@ import { getSchoolName } from '@/lib/schools'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import Loader from '../../components/Loader'
+import CommentsSection from '../../components/CommentsSection'
 
 interface Production {
   id: string; production_number: number; title: string
@@ -70,7 +71,7 @@ export default function ProductionDetailPage() {
   const [kbArticles, setKbArticles] = useState<KBArticle[]>([])
   const [currentUser, setCurrentUser] = useState<TeamMember | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'checklist'|'info'|'team'|'links'|'activity'>('checklist')
+  const [activeTab, setActiveTab] = useState<'checklist'|'info'|'team'|'links'|'activity'|'comments'>('checklist')
   const [selectedMember, setSelectedMember] = useState<string|null>(null)
   const [assignSuccess, setAssignSuccess] = useState(false)
   const [addingMember, setAddingMember] = useState(false)
@@ -456,6 +457,7 @@ export default function ProductionDetailPage() {
         {tabBtn('team', 'Team', members.length)}
         {tabBtn('links', 'Links', links.length)}
         {tabBtn('activity', 'Activity')}
+        {tabBtn('comments', 'Comments')}
       </div>
 
       {/* CHECKLIST TAB */}
@@ -825,6 +827,13 @@ export default function ProductionDetailPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* COMMENTS TAB */}
+      {activeTab === 'comments' && uuid && currentUser && (
+        <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '16px' }}>
+          <CommentsSection entityType="production" entityId={uuid} currentUserId={currentUser.id} team={allTeam} />
         </div>
       )}
 
