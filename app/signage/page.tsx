@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
-import { getSchoolName } from '@/lib/schools'
+import { getSchoolName as getSchoolNameFallback } from '@/lib/schools'
 
 interface Production {
   id: string; production_number: number; title: string
@@ -44,26 +44,36 @@ export default function SignagePage() {
   const [team, setTeam] = useState<TeamMember[]>([])
   const [schedDefaults, setSchedDefaults] = useState<SchedDefault[]>([])
   const [schedOverrides, setSchedOverrides] = useState<SchedOverride[]>([])
+  const [schoolMap, setSchoolMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(t) }, [])
 
   const loadData = useCallback(async () => {
-    const [prodsRes, teamRes, defsRes, ovrsRes] = await Promise.all([
+    const [prodsRes, teamRes, defsRes, ovrsRes, schoolsRes] = await Promise.all([
       supabase.from('productions').select('id, production_number, title, request_type_label, status, school_year, start_datetime, filming_location, school_department, production_members(user_id, team(name, avatar_color))').not('start_datetime', 'is', null).order('start_datetime'),
       supabase.from('team').select('id, name, avatar_color, role').eq('active', true),
       supabase.from('schedule_defaults').select('*'),
       supabase.from('schedule_overrides').select('*'),
+      supabase.from('schools').select('code, name'),
     ])
     setProductions((prodsRes.data as any) || [])
     setTeam(teamRes.data || [])
     setSchedDefaults(defsRes.data || [])
     setSchedOverrides(ovrsRes.data || [])
+    const map: Record<string, string> = {}
+    ;(schoolsRes.data || []).forEach((s: any) => { map[s.code] = s.name })
+    setSchoolMap(map)
     setLoading(false)
   }, [supabase])
 
   useEffect(() => { loadData() }, [loadData])
   useEffect(() => { const r = setInterval(() => loadData(), 300000); return () => clearInterval(r) }, [loadData])
+
+  const getSchoolName = (code: string | null | undefined): string => {
+    if (!code) return ''
+    return schoolMap[code] || getSchoolNameFallback(code) || ''
+  }
 
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const sunday = getSunday(today)

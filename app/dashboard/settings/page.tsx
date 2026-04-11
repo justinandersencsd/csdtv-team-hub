@@ -43,6 +43,12 @@ export default function SettingsPage() {
   const [inviteResult, setInviteResult] = useState<{ success: boolean; message: string } | null>(null)
   const [savedMsg, setSavedMsg] = useState('')
   const [editingTeamMember, setEditingTeamMember] = useState<string | null>(null)
+  const [schools, setSchools] = useState<{ id: string; code: string; name: string }[]>([])
+  const [schoolSearch, setSchoolSearch] = useState('')
+  const [newSchoolCode, setNewSchoolCode] = useState('')
+  const [newSchoolName, setNewSchoolName] = useState('')
+  const [editingSchool, setEditingSchool] = useState<string | null>(null)
+  const [editSchoolName, setEditSchoolName] = useState('')
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
@@ -53,12 +59,14 @@ export default function SettingsPage() {
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-    const [userRes, teamRes] = await Promise.all([
+    const [userRes, teamRes, schoolsRes] = await Promise.all([
       supabase.from('team').select('*').eq('supabase_user_id', session.user.id).single(),
       supabase.from('team').select('*').eq('active', true).order('name'),
+      supabase.from('schools').select('*').order('name'),
     ])
     setCurrentUser(userRes.data)
     setTeam(teamRes.data || [])
+    setSchools(schoolsRes.data || [])
     if (userRes.data) {
       setProfileForm({ name: userRes.data.name, email: userRes.data.email })
       setSelectedColor(userRes.data.avatar_color || '#e8a020')
@@ -149,6 +157,23 @@ export default function SettingsPage() {
 
   const inputStyle: React.CSSProperties = { background: inputBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '10px 14px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box', minHeight: '44px' }
   const isManager = currentUser?.role === 'Manager'
+
+  const addSchool = async () => {
+    if (!newSchoolCode.trim() || !newSchoolName.trim()) return
+    const { data } = await supabase.from('schools').insert({ code: newSchoolCode.trim(), name: newSchoolName.trim() }).select('*').single()
+    if (data) { setSchools(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name))); setNewSchoolCode(''); setNewSchoolName('') }
+  }
+  const updateSchool = async (id: string) => {
+    if (!editSchoolName.trim()) return
+    await supabase.from('schools').update({ name: editSchoolName.trim() }).eq('id', id)
+    setSchools(prev => prev.map(s => s.id === id ? { ...s, name: editSchoolName.trim() } : s))
+    setEditingSchool(null)
+  }
+  const deleteSchool = async (id: string) => {
+    await supabase.from('schools').delete().eq('id', id)
+    setSchools(prev => prev.filter(s => s.id !== id))
+  }
+  const filteredSchools = schools.filter(s => !schoolSearch || s.name.toLowerCase().includes(schoolSearch.toLowerCase()) || s.code.includes(schoolSearch))
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><Loader /></div>
 
@@ -293,6 +318,75 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* ── Schools / Locations ── */}
+      <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', padding: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, color: text, margin: 0 }}>Schools &amp; locations</h2>
+            <p style={{ fontSize: '13px', color: muted, margin: '4px 0 0' }}>{schools.length} entries — used to display location names on productions and signage</p>
+          </div>
+        </div>
+
+        {/* Add new */}
+        {isManager && (
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'flex-end' }}>
+            <div>
+              <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Code</p>
+              <input value={newSchoolCode} onChange={e => setNewSchoolCode(e.target.value)} placeholder="e.g. 702" style={{ ...inputStyle, width: '80px', fontSize: '14px' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Name</p>
+              <input value={newSchoolName} onChange={e => setNewSchoolName(e.target.value)} onKeyDown={e => e.key === 'Enter' && addSchool()} placeholder="e.g. Alta High" style={{ ...inputStyle, fontSize: '14px' }} />
+            </div>
+            <button onClick={addSchool} disabled={!newSchoolCode.trim() || !newSchoolName.trim()} style={{ fontSize: '14px', padding: '10px 18px', borderRadius: '10px', background: newSchoolCode && newSchoolName ? '#1e6cb5' : (dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'), color: newSchoolCode && newSchoolName ? '#fff' : muted, border: 'none', cursor: newSchoolCode && newSchoolName ? 'pointer' : 'default', fontFamily: 'inherit', fontWeight: 500, minHeight: '44px' }}>
+              Add
+            </button>
+          </div>
+        )}
+
+        {/* Search */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '8px 14px', marginBottom: '12px' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={muted} strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input value={schoolSearch} onChange={e => setSchoolSearch(e.target.value)} placeholder="Search schools..." style={{ background: 'none', border: 'none', outline: 'none', fontSize: '14px', color: text, fontFamily: 'inherit', width: '100%' }} />
+          {schoolSearch && <button onClick={() => setSchoolSearch('')} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>}
+        </div>
+
+        {/* Table */}
+        <div style={{ border: `0.5px solid ${border}`, borderRadius: '10px', overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 100px', padding: '10px 14px', borderBottom: `0.5px solid ${border}`, background: dark ? 'rgba(255,255,255,0.02)' : '#f8f9fc' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: muted, textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Code</span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: muted, textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Name</span>
+            <span />
+          </div>
+          <div style={{ maxHeight: '400px', overflowY: 'auto' as const }}>
+            {filteredSchools.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center' as const }}>
+                <p style={{ color: muted, fontSize: '14px', margin: 0 }}>{schoolSearch ? 'No matches' : 'No schools added yet'}</p>
+              </div>
+            ) : filteredSchools.map((school, i) => (
+              <div key={school.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 100px', padding: '10px 14px', borderBottom: i < filteredSchools.length - 1 ? `0.5px solid ${border}` : 'none', alignItems: 'center' }}>
+                <span style={{ fontSize: '14px', color: muted, fontFamily: 'monospace' }}>{school.code}</span>
+                {editingSchool === school.id ? (
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <input value={editSchoolName} onChange={e => setEditSchoolName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') updateSchool(school.id); if (e.key === 'Escape') setEditingSchool(null) }} autoFocus style={{ ...inputStyle, fontSize: '14px', flex: 1, padding: '6px 10px' }} />
+                    <button onClick={() => updateSchool(school.id)} style={{ fontSize: '13px', padding: '5px 12px', borderRadius: '6px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Save</button>
+                    <button onClick={() => setEditingSchool(null)} style={{ fontSize: '13px', padding: '5px 12px', borderRadius: '6px', background: 'transparent', color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '14px', color: text }}>{school.name}</span>
+                )}
+                {isManager && editingSchool !== school.id && (
+                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                    <button onClick={() => { setEditingSchool(school.id); setEditSchoolName(school.name) }} style={{ fontSize: '12px', color: '#5ba3e0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Edit</button>
+                    <button onClick={() => { if (confirm(`Remove "${school.name}"?`)) deleteSchool(school.id) }} style={{ fontSize: '12px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Remove</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
