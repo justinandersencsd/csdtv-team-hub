@@ -263,21 +263,32 @@ export default function SignagePage() {
         )}
       </div>
 
-      {/* 5-week calendar — Sun-Sat */}
+      {/* 5-week calendar — Sun-Sat, table-style grid */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, minHeight: 0 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, gap: '3px', marginBottom: '3px', flexShrink: 0 }}>
-          <div />
-          {DOW.map((d, i) => {
-            const isTodayCol = isTodayDate(weeks[0][i])
-            return <div key={d} style={{ padding: '4px', textAlign: 'center' as const, fontSize: '14px', fontWeight: 800, color: isTodayCol ? '#60b8f0' : '#ccd5e8', letterSpacing: '1px' }}>{d}</div>
-          })}
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, gap: '3px' }}>
+        {/* Entire calendar as one bordered grid */}
+        <div style={{ border: `1px solid ${border}`, borderRadius: '10px', overflow: 'hidden' as const, flex: 1, display: 'flex', flexDirection: 'column' as const }}>
+          {/* Day headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+            <div style={{ borderRight: `1px solid ${border}` }} />
+            {DOW.map((d, i) => {
+              const isTodayCol = isTodayDate(weeks[0][i])
+              return (
+                <div key={d} style={{ padding: '6px 4px', textAlign: 'center' as const, fontSize: '14px', fontWeight: 800, color: isTodayCol ? '#60b8f0' : '#ccd5e8', letterSpacing: '1px', borderRight: i < 6 ? `1px solid ${border}` : 'none', background: isTodayCol ? 'rgba(96,184,240,0.06)' : 'transparent' }}>
+                  {d}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Week rows */}
           {weeks.map((weekDates, wi) => (
-            <div key={wi} style={{ display: 'grid', gridTemplateColumns: GRID_COLS, gap: '3px', flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: wi === 0 ? '#60b8f0' : muted, textAlign: 'center' as const, padding: '8px 4px', background: wi === 0 ? 'rgba(96,184,240,0.08)' : 'transparent' as const, borderRadius: '6px' }}>
+            <div key={wi} style={{ display: 'grid', gridTemplateColumns: GRID_COLS, borderBottom: wi < 4 ? `1px solid ${border}` : 'none', minHeight: '80px' }}>
+              {/* Week label */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: wi === 0 ? '#60b8f0' : muted, textAlign: 'center' as const, padding: '8px 4px', borderRight: `1px solid ${border}`, background: wi === 0 ? 'rgba(96,184,240,0.06)' : 'transparent' }}>
                 {weekLabel(weekDates)}
               </div>
+
+              {/* Day cells */}
               {weekDates.map((date, di) => {
                 const dayProds = getProdsForDay(date)
                 const past = isPast(date) && !isTodayDate(date)
@@ -287,45 +298,43 @@ export default function SignagePage() {
                 const cellOpacity = past ? (hasInProgress ? 0.85 : 0.3) : 1
                 return (
                   <div key={di} style={{
-                    background: todayCell ? 'rgba(96,184,240,0.12)' : isWeekend ? 'rgba(255,255,255,0.015)' : cardBg,
-                    border: todayCell ? '2px solid #60b8f0' : `1px solid ${border}`,
-                    borderRadius: '8px', padding: '3px 4px',
-                    opacity: cellOpacity, display: 'flex', flexDirection: 'column' as const,
+                    background: todayCell ? 'rgba(96,184,240,0.1)' : isWeekend ? 'rgba(255,255,255,0.01)' : 'transparent',
+                    borderRight: di < 6 ? `1px solid ${border}` : 'none',
+                    padding: '3px 4px', opacity: cellOpacity,
+                    borderLeft: todayCell ? '2px solid #60b8f0' : 'none',
                   }}>
-                    <div style={{ fontSize: '12px', color: todayCell ? '#60b8f0' : '#ccd5e8', fontWeight: todayCell ? 800 : 500, textAlign: 'right' as const, padding: '0 2px', marginBottom: '1px', lineHeight: 1 }}>
+                    <div style={{ fontSize: '12px', color: todayCell ? '#60b8f0' : '#99aabb', fontWeight: todayCell ? 800 : 500, textAlign: 'right' as const, padding: '0 2px', marginBottom: '2px', lineHeight: 1 }}>
                       {date.getDate()}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      {dayProds.map(p => {
-                        const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#94a3b8'
-                        const members = p.production_members || []
-                        const initials = members.map(m => m.team ? getInitials(m.team.name) : '').filter(Boolean).join(' ')
-                        const isComplete = p.status === 'Complete'
-                        const isActive = p.status === 'In Progress'
-                        const d = p.start_datetime ? new Date(p.start_datetime) : null
-                        const timeStr = d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
-                        const location = getSchoolName(p.school_department) || p.filming_location || ''
-                        return (
-                          <div key={p.id} style={{
-                            padding: '3px 4px', marginBottom: '2px', borderRadius: '4px',
-                            background: isComplete ? 'rgba(255,255,255,0.03)' : `${typeColor}20`,
-                            borderLeft: `3px solid ${isComplete ? '#555' : typeColor}`,
-                            opacity: isComplete ? 0.45 : 1,
-                            textDecoration: isComplete ? 'line-through' : 'none',
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <span style={{ fontSize: '12px', fontWeight: isActive ? 700 : 600, color: isComplete ? dimmed : typeColor, flex: 1, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>{p.title}</span>
-                              {initials && <span style={{ fontSize: '9px', color: isComplete ? dimmed : muted, flexShrink: 0, fontWeight: 600 }}>{initials}</span>}
-                            </div>
-                            {(timeStr || location) && (
-                              <div style={{ fontSize: '10px', color: '#8aa0bc', marginTop: '0px', overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>
-                                {timeStr}{timeStr && location ? ' · ' : ''}{location}
-                              </div>
-                            )}
+                    {dayProds.map(p => {
+                      const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#94a3b8'
+                      const members = p.production_members || []
+                      const initials = members.map(m => m.team ? getInitials(m.team.name) : '').filter(Boolean).join(' ')
+                      const isComplete = p.status === 'Complete'
+                      const isActive = p.status === 'In Progress'
+                      const d = p.start_datetime ? new Date(p.start_datetime) : null
+                      const timeStr = d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
+                      const location = getSchoolName(p.school_department) || p.filming_location || ''
+                      return (
+                        <div key={p.id} style={{
+                          padding: '3px 5px', marginBottom: '2px', borderRadius: '4px',
+                          background: isComplete ? 'rgba(255,255,255,0.03)' : `${typeColor}20`,
+                          borderLeft: `3px solid ${isComplete ? '#555' : typeColor}`,
+                          opacity: isComplete ? 0.45 : 1,
+                          textDecoration: isComplete ? 'line-through' : 'none',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: isActive ? 700 : 600, color: isComplete ? dimmed : typeColor, flex: 1, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>{p.title}</span>
+                            {initials && <span style={{ fontSize: '9px', color: isComplete ? dimmed : muted, flexShrink: 0, fontWeight: 600 }}>{initials}</span>}
                           </div>
-                        )
-                      })}
-                    </div>
+                          {(timeStr || location) && (
+                            <div style={{ fontSize: '10px', color: '#8aa0bc', overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>
+                              {timeStr}{timeStr && location ? ' · ' : ''}{location}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )
               })}
