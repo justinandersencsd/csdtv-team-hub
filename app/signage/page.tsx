@@ -16,26 +16,19 @@ interface SchedOverride { id: string; user_id: string; week_start: string; monda
 
 const TYPE_COLORS: Record<string, string> = {
   'Photo Headshots': '#f0b840', 'Create a Video(Film, Edit, Publish)': '#60b8f0', 'LiveStream Meeting': '#34d399',
-  'Record Meeting': '#b8a0f0', 'Podcast': '#fb923c', 'Board Meeting': '#f87171',
-  'Other, Unsure, Or Consultation': '#94a3b8',
+  'Record Meeting': '#b8a0f0', 'Podcast': '#fb923c', 'Board Meeting': '#f87171', 'Other, Unsure, Or Consultation': '#94a3b8',
 }
 const TYPE_SHORT: Record<string, string> = {
   'Photo Headshots': 'Photo', 'Create a Video(Film, Edit, Publish)': 'Video', 'LiveStream Meeting': 'Livestream',
-  'Record Meeting': 'Recording', 'Podcast': 'Podcast', 'Board Meeting': 'Board Mtg',
-  'Other, Unsure, Or Consultation': 'Other',
+  'Record Meeting': 'Recording', 'Podcast': 'Podcast', 'Board Meeting': 'Board Mtg', 'Other, Unsure, Or Consultation': 'Other',
 }
-const STATUS_COLORS: Record<string, string> = {
-  'Approved/Scheduled': '#34d399', 'In Progress': '#fbbf24', 'Complete': '#94a3b8',
-}
-
 const DOW = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
-const DOW_KEYS_MAP: Record<number, string> = { 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday' }
-const GRID_COLS = '70px 0.5fr repeat(5, 1fr) 0.5fr'
+const DOW_MAP: Record<number, string> = { 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday' }
 
 function getSunday(d: Date): Date { const dt = new Date(d); dt.setDate(dt.getDate() - dt.getDay()); dt.setHours(0, 0, 0, 0); return dt }
 function getMondayStr(d: Date): string { const dt = new Date(d); const day = dt.getDay(); dt.setDate(dt.getDate() + (day === 0 ? -6 : 1 - day)); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}` }
 function isSameDay(a: Date, b: Date) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate() }
-function getInitials(name: string) { const p = name.split(' '); return p.length >= 2 ? (p[0][0] + p[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase() }
+function getInitials(n: string) { const p = n.split(' '); return p.length >= 2 ? (p[0][0] + p[1][0]).toUpperCase() : n.slice(0, 2).toUpperCase() }
 
 export default function SignagePage() {
   const supabase = createClient()
@@ -61,9 +54,9 @@ export default function SignagePage() {
     setTeam(teamRes.data || [])
     setSchedDefaults(defsRes.data || [])
     setSchedOverrides(ovrsRes.data || [])
-    const map: Record<string, string> = {}
-    ;(schoolsRes.data || []).forEach((s: any) => { map[s.code] = s.name })
-    setSchoolMap(map)
+    const m: Record<string, string> = {}
+    ;(schoolsRes.data || []).forEach((s: any) => { m[s.code] = s.name })
+    setSchoolMap(m)
     setLoading(false)
   }, [supabase])
 
@@ -72,9 +65,7 @@ export default function SignagePage() {
 
   const getSchoolName = (code: string | null | undefined): string => {
     if (!code) return ''
-    const c = code.toString()
-    const padded = c.padStart(3, '0')
-    const stripped = c.replace(/^0+/, '') || '0'
+    const c = code.toString(); const padded = c.padStart(3, '0'); const stripped = c.replace(/^0+/, '') || '0'
     return schoolMap[c] || schoolMap[padded] || schoolMap[stripped] || getSchoolNameFallback(code) || ''
   }
 
@@ -94,30 +85,22 @@ export default function SignagePage() {
     return productions.filter(p => { if (!p.start_datetime) return false; const s = new Date(p.start_datetime); return s >= ds && s <= de })
   }
 
-  const todayProds = getProdsForDay(today)
-  const isPast = (date: Date) => date < today
-  const isTodayDate = (date: Date) => isSameDay(date, today)
-
   const getHoursForUser = (userId: string): string | null => {
     const dow = today.getDay(); if (dow === 0 || dow === 6) return null
-    const dayKey = DOW_KEYS_MAP[dow]; if (!dayKey) return null
-    const weekStart = getMondayStr(today)
-    const override = schedOverrides.find(o => o.user_id === userId && o.week_start === weekStart)
-    if (override && (override as any)[dayKey]) return (override as any)[dayKey]
+    const dayKey = DOW_MAP[dow]; if (!dayKey) return null
+    const ws = getMondayStr(today)
+    const ov = schedOverrides.find(o => o.user_id === userId && o.week_start === ws)
+    if (ov && (ov as any)[dayKey]) return (ov as any)[dayKey]
     const def = schedDefaults.find(d => d.user_id === userId)
     return def ? ((def as any)[dayKey] || null) : null
   }
 
   const inProgressProds = productions.filter(p => p.status === 'In Progress')
-
   const endOfWeek = new Date(sunday); endOfWeek.setDate(endOfWeek.getDate() + 7)
   const thisWeekProds = productions.filter(p => { if (!p.start_datetime) return false; const d = new Date(p.start_datetime); return d >= sunday && d < endOfWeek })
-  const thisWeekByType = thisWeekProds.reduce((acc, p) => { const t = TYPE_SHORT[p.request_type_label || ''] || 'Other'; acc[t] = (acc[t] || 0) + 1; return acc }, {} as Record<string, number>)
-
   const currentSchoolYear = (() => { const m = now.getMonth(); const y = now.getFullYear(); return m >= 7 ? `${y + 1}` : `${y}` })()
   const ytdCompleted = productions.filter(p => p.status === 'Complete' && p.school_year === currentSchoolYear).length
   const ytdTotal = productions.filter(p => p.school_year === currentSchoolYear).length
-
   const nextProd = productions.find(p => { if (!p.start_datetime || p.status === 'Complete' || p.status === 'Cancelled') return false; return new Date(p.start_datetime) > now })
   const countdown = (() => {
     if (!nextProd?.start_datetime) return null
@@ -129,218 +112,125 @@ export default function SignagePage() {
     return { label: `${mins}m`, sub: nextProd.title }
   })()
 
-  const weekLabel = (wd: Date[]) => isSameDay(wd[0], sunday) ? 'This week' : wd[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const bg = '#070d18'; const cardBg = '#0f1828'; const text = '#eef2ff'; const muted = '#8899bb'; const dimmed = '#4a5670'
+  const gridBorder = 'rgba(255,255,255,0.1)'
 
-  const bg = '#070d18'; const cardBg = '#0f1828'; const text = '#eef2ff'; const muted = '#8899bb'; const dimmed = '#4a5670'; const border = 'rgba(255,255,255,0.08)'
-
-  if (loading) return (
-    <div style={{ background: bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' as const }}>
-      <p style={{ color: muted, fontSize: '22px', fontFamily: 'system-ui' }}>Loading...</p>
-    </div>
-  )
+  if (loading) return <div style={{ background: bg, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' as const }}><p style={{ color: muted, fontSize: '22px', fontFamily: 'system-ui' }}>Loading...</p></div>
 
   return (
-    <div style={{ background: bg, height: '100vh', padding: '16px 20px', fontFamily: 'system-ui, -apple-system, sans-serif', color: text, display: 'flex', flexDirection: 'column' as const, boxSizing: 'border-box' as const, overflow: 'hidden' as const }}>
+    <div style={{ background: bg, height: '100vh', padding: '12px 16px', fontFamily: 'system-ui, -apple-system, sans-serif', color: text, display: 'flex', flexDirection: 'column' as const, boxSizing: 'border-box' as const, overflow: 'hidden' as const }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px', flexShrink: 0 }}>
+      {/* Row 1: Title + Clock */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0 }}>
         <div>
-          <div style={{ fontSize: '24px', fontWeight: 700, letterSpacing: '-0.5px', marginBottom: '2px' }}>CSDtv Production Office</div>
-          {countdown && (
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-              <span style={{ fontSize: '15px', color: muted }}>Next shoot in</span>
-              <span style={{ fontSize: '24px', fontWeight: 800, color: '#60b8f0' }}>{countdown.label}</span>
-              <span style={{ fontSize: '15px', color: muted }}>— {countdown.sub}</span>
-            </div>
-          )}
+          <span style={{ fontSize: '20px', fontWeight: 700 }}>CSDtv Production Office</span>
+          {countdown && <span style={{ marginLeft: '16px', fontSize: '14px', color: muted }}>Next shoot in <span style={{ fontSize: '18px', fontWeight: 800, color: '#60b8f0' }}>{countdown.label}</span> — {countdown.sub}</span>}
         </div>
-        <div style={{ textAlign: 'right' as const }}>
-          <div style={{ fontSize: '18px', fontWeight: 500, color: '#ccd5e8' }}>
-            {now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-          </div>
-          <div style={{ fontSize: '32px', fontWeight: 800, color: '#60b8f0', lineHeight: 1.1 }}>
-            {now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-          </div>
-        </div>
-      </div>
-
-      {/* Stats bar */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', flexShrink: 0, alignItems: 'center' }}>
-        <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '10px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 800, color: '#60b8f0', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>This week</span>
-          <span style={{ fontSize: '16px', fontWeight: 700, color: text }}>{thisWeekProds.length} production{thisWeekProds.length !== 1 ? 's' : ''}</span>
-          {Object.entries(thisWeekByType).map(([type, count]) => (
-            <span key={type} style={{ fontSize: '13px', color: '#ccd5e8' }}>{count} {type}</span>
-          ))}
-        </div>
-        <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '10px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 800, color: '#34d399', textTransform: 'uppercase' as const, letterSpacing: '1px' }}>Year</span>
-          <span style={{ fontSize: '16px', fontWeight: 700, color: text }}>{ytdCompleted} completed</span>
-          <span style={{ fontSize: '13px', color: '#ccd5e8' }}>of {ytdTotal}</span>
-        </div>
-        {/* Staff hours inline */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {team.map(member => {
-            const hours = getHoursForUser(member.id)
-            return (
-              <div key={member.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', background: cardBg, border: `1px solid ${border}` }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: member.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#0a0f1e' }}>
-                  {getInitials(member.name)}
-                </div>
-                <span style={{ fontSize: '13px', fontWeight: 500, color: text }}>{member.name.split(' ')[0]}</span>
-                <span style={{ fontSize: '13px', color: hours ? '#34d399' : dimmed, fontWeight: 600 }}>{hours || 'Off'}</span>
-              </div>
-            )
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {team.map(m => {
+            const hrs = getHoursForUser(m.id)
+            return <span key={m.id} style={{ fontSize: '12px', color: hrs ? '#ccd5e8' : dimmed }}><span style={{ display: 'inline-block', width: '18px', height: '18px', borderRadius: '50%', background: m.avatar_color, textAlign: 'center' as const, lineHeight: '18px', fontSize: '8px', fontWeight: 700, color: '#0a0f1e', marginRight: '4px', verticalAlign: 'middle' }}>{getInitials(m.name)}</span>{m.name.split(' ')[0]} <span style={{ color: hrs ? '#34d399' : dimmed, fontWeight: 600 }}>{hrs || 'Off'}</span></span>
           })}
+          <span style={{ fontSize: '16px', fontWeight: 500, color: '#ccd5e8' }}>{now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+          <span style={{ fontSize: '24px', fontWeight: 800, color: '#60b8f0' }}>{now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
         </div>
       </div>
 
-      {/* Today + In Progress row */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', flexShrink: 0 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '13px', fontWeight: 800, color: '#60b8f0', textTransform: 'uppercase' as const, letterSpacing: '1.5px', marginBottom: '6px' }}>
-            Today{todayProds.length > 0 ? ` · ${todayProds.length}` : ''}
-          </div>
-          {todayProds.length === 0 ? (
-            <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '10px', padding: '18px', textAlign: 'center' as const }}>
-              <span style={{ color: dimmed, fontSize: '16px' }}>No productions today</span>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto' as const }}>
-              {todayProds.map(p => {
-                const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#94a3b8'
-                const statusColor = STATUS_COLORS[p.status || ''] || '#94a3b8'
-                const d = new Date(p.start_datetime!)
-                const members = p.production_members || []
-                const isComplete = p.status === 'Complete'
-                return (
-                  <div key={p.id} style={{ background: cardBg, border: `1px solid ${border}`, borderLeft: `5px solid ${typeColor}`, borderRadius: '10px', padding: '14px 16px', minWidth: '240px', flex: '0 0 auto', opacity: isComplete ? 0.35 : 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '17px', fontWeight: 700, color: text, flex: 1, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>{p.title}</span>
-                      <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '10px', background: `${statusColor}25`, color: statusColor, fontWeight: 700, flexShrink: 0 }}>{p.status}</span>
-                    </div>
-                    <div style={{ fontSize: '14px', color: typeColor, fontWeight: 600, marginBottom: '2px' }}>{TYPE_SHORT[p.request_type_label || ''] || 'Production'}</div>
-                    <div style={{ fontSize: '15px', color: '#ccd5e8' }}>
-                      {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                      {(() => { const loc = getSchoolName(p.school_department) || p.filming_location; return loc ? ` · ${loc}` : '' })()}
-                    </div>
-                    {members.length > 0 && (
-                      <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
-                        {members.map((m, i) => (
-                          <div key={i} style={{ width: '26px', height: '26px', borderRadius: '50%', background: m.team?.avatar_color || '#60b8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#0a0f1e' }}>
-                            {m.team ? getInitials(m.team.name) : '?'}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-        {inProgressProds.length > 0 && (
-          <div style={{ width: '300px', flexShrink: 0 }}>
-            <div style={{ fontSize: '13px', fontWeight: 800, color: '#fbbf24', textTransform: 'uppercase' as const, letterSpacing: '1.5px', marginBottom: '6px' }}>
-              In progress · {inProgressProds.length}
-            </div>
-            <div style={{ background: cardBg, border: '1px solid rgba(251,191,36,0.2)', borderRadius: '10px', padding: '10px', maxHeight: '120px', overflowY: 'auto' as const }}>
-              {inProgressProds.slice(0, 5).map(p => {
-                const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#94a3b8'
-                const datePart = p.start_datetime ? new Date(p.start_datetime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
-                return (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px', borderBottom: `1px solid ${border}` }}>
-                    <div style={{ width: '4px', height: '24px', borderRadius: '2px', background: typeColor, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '14px', fontWeight: 600, color: text, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>{p.title}</div>
-                      <div style={{ fontSize: '12px', color: muted }}>{TYPE_SHORT[p.request_type_label || ''] || 'Production'}{datePart ? ` · ${datePart}` : ''}</div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+      {/* Row 2: Stats */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexShrink: 0, fontSize: '13px' }}>
+        <span style={{ background: cardBg, border: `1px solid ${gridBorder}`, borderRadius: '8px', padding: '5px 12px' }}><span style={{ color: '#60b8f0', fontWeight: 700 }}>THIS WEEK</span> <span style={{ fontWeight: 600 }}>{thisWeekProds.length}</span> production{thisWeekProds.length !== 1 ? 's' : ''}</span>
+        <span style={{ background: cardBg, border: `1px solid ${gridBorder}`, borderRadius: '8px', padding: '5px 12px' }}><span style={{ color: '#34d399', fontWeight: 700 }}>YEAR</span> <span style={{ fontWeight: 600 }}>{ytdCompleted}</span> completed of {ytdTotal}</span>
+        {inProgressProds.length > 0 && <span style={{ background: cardBg, border: '1px solid rgba(251,191,36,0.2)', borderRadius: '8px', padding: '5px 12px' }}><span style={{ color: '#fbbf24', fontWeight: 700 }}>IN PROGRESS</span> {inProgressProds.map(p => p.title).join(' · ')}</span>}
       </div>
 
-      {/* 5-week calendar — Sun-Sat, table-style grid */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, minHeight: 0 }}>
-        {/* Entire calendar as one bordered grid */}
-        <div style={{ border: `1px solid ${border}`, borderRadius: '10px', overflow: 'hidden' as const, flex: 1, display: 'flex', flexDirection: 'column' as const }}>
-          {/* Day headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
-            <div style={{ borderRight: `1px solid ${border}` }} />
-            {DOW.map((d, i) => {
-              const isTodayCol = isTodayDate(weeks[0][i])
+      {/* Calendar — single CSS grid: 8 cols × 6 rows */}
+      <div style={{
+        flex: 1, display: 'grid',
+        gridTemplateColumns: '64px 0.5fr repeat(5, 1fr) 0.5fr',
+        gridTemplateRows: 'auto repeat(5, 1fr)',
+        border: `1px solid ${gridBorder}`, borderRadius: '8px', overflow: 'hidden' as const, minHeight: 0,
+      }}>
+        {/* Header row: 8 cells */}
+        <div style={{ background: '#111d30', borderBottom: `1px solid ${gridBorder}`, borderRight: `1px solid ${gridBorder}`, padding: '6px' }} />
+        {DOW.map((d, i) => {
+          const isToday = isSameDay(weeks[0][i], today)
+          return (
+            <div key={d} style={{
+              background: isToday ? 'rgba(96,184,240,0.08)' : '#111d30',
+              borderBottom: `1px solid ${gridBorder}`, borderRight: i < 6 ? `1px solid ${gridBorder}` : 'none',
+              padding: '6px', textAlign: 'center' as const, fontSize: '13px', fontWeight: 800,
+              color: isToday ? '#60b8f0' : '#ccd5e8', letterSpacing: '1px',
+            }}>{d}</div>
+          )
+        })}
+
+        {/* 5 week rows: each row = 8 cells */}
+        {weeks.map((weekDates, wi) => {
+          const isThisWeek = isSameDay(weekDates[0], sunday)
+          const weekLabel = isThisWeek ? 'This week' : weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+          return [
+            /* Week label cell */
+            <div key={`label-${wi}`} style={{
+              background: isThisWeek ? 'rgba(96,184,240,0.06)' : 'transparent',
+              borderBottom: wi < 4 ? `1px solid ${gridBorder}` : 'none',
+              borderRight: `1px solid ${gridBorder}`,
+              padding: '6px 4px', fontSize: '10px', fontWeight: 700,
+              color: isThisWeek ? '#60b8f0' : muted, textAlign: 'center' as const,
+              display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '8px',
+            }}>{weekLabel}</div>,
+
+            /* 7 day cells */
+            ...weekDates.map((date, di) => {
+              const dayProds = getProdsForDay(date)
+              const past = date < today && !isSameDay(date, today)
+              const todayCell = isSameDay(date, today)
+              const isWeekend = di === 0 || di === 6
+              const hasActive = dayProds.some(p => p.status === 'In Progress')
+              const opacity = past ? (hasActive ? 0.8 : 0.3) : 1
+
               return (
-                <div key={d} style={{ padding: '6px 4px', textAlign: 'center' as const, fontSize: '14px', fontWeight: 800, color: isTodayCol ? '#60b8f0' : '#ccd5e8', letterSpacing: '1px', borderRight: i < 6 ? `1px solid ${border}` : 'none', background: isTodayCol ? 'rgba(96,184,240,0.06)' : 'transparent' }}>
-                  {d}
+                <div key={`${wi}-${di}`} style={{
+                  background: todayCell ? 'rgba(96,184,240,0.08)' : isWeekend ? 'rgba(255,255,255,0.01)' : 'transparent',
+                  borderBottom: wi < 4 ? `1px solid ${gridBorder}` : 'none',
+                  borderRight: di < 6 ? `1px solid ${gridBorder}` : 'none',
+                  borderLeft: todayCell ? '3px solid #60b8f0' : 'none',
+                  padding: '2px 3px', opacity, overflow: 'hidden' as const,
+                }}>
+                  <div style={{ fontSize: '11px', color: todayCell ? '#60b8f0' : '#99aabb', fontWeight: todayCell ? 800 : 500, textAlign: 'right' as const, marginBottom: '1px' }}>{date.getDate()}</div>
+                  {dayProds.map(p => {
+                    const tc = TYPE_COLORS[p.request_type_label || ''] || '#94a3b8'
+                    const members = p.production_members || []
+                    const ini = members.map(m => m.team ? getInitials(m.team.name) : '').filter(Boolean).join(' ')
+                    const done = p.status === 'Complete'
+                    const active = p.status === 'In Progress'
+                    const d = p.start_datetime ? new Date(p.start_datetime) : null
+                    const time = d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
+                    const loc = getSchoolName(p.school_department) || p.filming_location || ''
+                    return (
+                      <div key={p.id} style={{
+                        padding: '2px 4px', marginBottom: '1px', borderRadius: '3px',
+                        background: done ? 'rgba(255,255,255,0.02)' : `${tc}18`,
+                        borderLeft: `3px solid ${done ? '#444' : tc}`,
+                        opacity: done ? 0.4 : 1,
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: active ? 700 : 600, color: done ? dimmed : tc, flex: 1, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const, textDecoration: done ? 'line-through' : 'none' }}>{p.title}</span>
+                          {ini && <span style={{ fontSize: '8px', color: done ? dimmed : muted, flexShrink: 0 }}>{ini}</span>}
+                        </div>
+                        {(time || loc) && !done && (
+                          <div style={{ fontSize: '9px', color: '#7a90aa', overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>
+                            {time}{time && loc ? ' · ' : ''}{loc}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )
-            })}
-          </div>
-
-          {/* Week rows */}
-          {weeks.map((weekDates, wi) => (
-            <div key={wi} style={{ display: 'grid', gridTemplateColumns: GRID_COLS, borderBottom: wi < 4 ? `1px solid ${border}` : 'none', minHeight: '80px' }}>
-              {/* Week label */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: wi === 0 ? '#60b8f0' : muted, textAlign: 'center' as const, padding: '8px 4px', borderRight: `1px solid ${border}`, background: wi === 0 ? 'rgba(96,184,240,0.06)' : 'transparent' }}>
-                {weekLabel(weekDates)}
-              </div>
-
-              {/* Day cells */}
-              {weekDates.map((date, di) => {
-                const dayProds = getProdsForDay(date)
-                const past = isPast(date) && !isTodayDate(date)
-                const todayCell = isTodayDate(date)
-                const isWeekend = di === 0 || di === 6
-                const hasInProgress = dayProds.some(p => p.status === 'In Progress')
-                const cellOpacity = past ? (hasInProgress ? 0.85 : 0.3) : 1
-                return (
-                  <div key={di} style={{
-                    background: todayCell ? 'rgba(96,184,240,0.1)' : isWeekend ? 'rgba(255,255,255,0.01)' : 'transparent',
-                    borderRight: di < 6 ? `1px solid ${border}` : 'none',
-                    padding: '3px 4px', opacity: cellOpacity,
-                    borderLeft: todayCell ? '2px solid #60b8f0' : 'none',
-                  }}>
-                    <div style={{ fontSize: '12px', color: todayCell ? '#60b8f0' : '#99aabb', fontWeight: todayCell ? 800 : 500, textAlign: 'right' as const, padding: '0 2px', marginBottom: '2px', lineHeight: 1 }}>
-                      {date.getDate()}
-                    </div>
-                    {dayProds.map(p => {
-                      const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#94a3b8'
-                      const members = p.production_members || []
-                      const initials = members.map(m => m.team ? getInitials(m.team.name) : '').filter(Boolean).join(' ')
-                      const isComplete = p.status === 'Complete'
-                      const isActive = p.status === 'In Progress'
-                      const d = p.start_datetime ? new Date(p.start_datetime) : null
-                      const timeStr = d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
-                      const location = getSchoolName(p.school_department) || p.filming_location || ''
-                      return (
-                        <div key={p.id} style={{
-                          padding: '3px 5px', marginBottom: '2px', borderRadius: '4px',
-                          background: isComplete ? 'rgba(255,255,255,0.03)' : `${typeColor}20`,
-                          borderLeft: `3px solid ${isComplete ? '#555' : typeColor}`,
-                          opacity: isComplete ? 0.45 : 1,
-                          textDecoration: isComplete ? 'line-through' : 'none',
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ fontSize: '12px', fontWeight: isActive ? 700 : 600, color: isComplete ? dimmed : typeColor, flex: 1, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>{p.title}</span>
-                            {initials && <span style={{ fontSize: '9px', color: isComplete ? dimmed : muted, flexShrink: 0, fontWeight: 600 }}>{initials}</span>}
-                          </div>
-                          {(timeStr || location) && (
-                            <div style={{ fontSize: '10px', color: '#8aa0bc', overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>
-                              {timeStr}{timeStr && location ? ' · ' : ''}{location}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </div>
+            }),
+          ]
+        })}
       </div>
     </div>
   )
