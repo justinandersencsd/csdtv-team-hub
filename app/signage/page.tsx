@@ -278,9 +278,6 @@ export default function SignagePage() {
                     borderRadius: '8px', padding: '4px 5px', overflow: 'hidden' as const,
                     opacity: cellOpacity, display: 'flex', flexDirection: 'column' as const,
                   }}>
-                    <div style={{ fontSize: '14px', color: todayCell ? '#60b8f0' : '#ccd5e8', fontWeight: todayCell ? 800 : 500, textAlign: 'right' as const, padding: '0 2px', marginBottom: '3px', lineHeight: 1 }}>
-                      {date.getDate()}
-                    </div>
                     <div style={{ flex: 1, overflow: 'hidden' as const }}>
                       {dayProds.slice(0, 2).map(p => {
                         const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#94a3b8'
@@ -290,7 +287,7 @@ export default function SignagePage() {
                         const isActive = p.status === 'In Progress'
                         const d = p.start_datetime ? new Date(p.start_datetime) : null
                         const timeStr = d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
-                        const locShort = p.filming_location ? (p.filming_location.length > 18 ? p.filming_location.slice(0, 16) + '...' : p.filming_location) : ''
+                        const locShort = p.filming_location ? (p.filming_location.length > 28 ? p.filming_location.slice(0, 26) + '...' : p.filming_location) : ''
                         return (
                           <div key={p.id} style={{
                             padding: '4px 5px', marginBottom: '3px', borderRadius: '4px',
@@ -303,7 +300,7 @@ export default function SignagePage() {
                               <span style={{ fontSize: '13px', fontWeight: isActive ? 700 : 600, color: isComplete ? dimmed : typeColor, flex: 1, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>{p.title}</span>
                               {initials && <span style={{ fontSize: '10px', color: isComplete ? dimmed : muted, flexShrink: 0, fontWeight: 600 }}>{initials}</span>}
                             </div>
-                            {(timeStr || locShort) && !isComplete && (
+                            {(timeStr || locShort) && (
                               <div style={{ fontSize: '11px', color: '#9ab0cc', marginTop: '1px', overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>
                                 {timeStr}{timeStr && locShort ? ' · ' : ''}{locShort}
                               </div>
