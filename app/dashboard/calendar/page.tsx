@@ -90,9 +90,9 @@ export default function CalendarPage() {
       <h1 style={{ fontSize: '26px', fontWeight: 700, color: text, margin: '0 0 4px' }}>Production calendar</h1>
       <p style={{ fontSize: '14px', color: muted, margin: '0 0 20px' }}>Upcoming shoots and events</p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '20px' }}>
+      <div>
         {/* Calendar */}
-        <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', overflow: 'hidden' }}>
+        <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '20px', overflow: 'hidden', marginBottom: '20px' }}>
           {/* Month nav */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <button onClick={prevMonth} style={{ background: 'none', border: `0.5px solid ${border}`, borderRadius: '8px', padding: '8px 14px', color: muted, cursor: 'pointer', fontFamily: 'inherit', fontSize: '14px' }}>←</button>
@@ -104,52 +104,48 @@ export default function CalendarPage() {
           </div>
 
           {/* Day headers */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px', marginBottom: '4px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
               <div key={d} style={{ padding: '6px', textAlign: 'center' as const, fontSize: '12px', fontWeight: 600, color: muted, textTransform: 'uppercase' as const }}>{d}</div>
             ))}
           </div>
 
           {/* Calendar grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
             {calDays.map((day, i) => {
-              if (day === null) return <div key={i} style={{ minHeight: '80px', background: dark ? 'rgba(255,255,255,0.01)' : '#fafbfc', borderRadius: '4px' }} />
+              if (day === null) return <div key={i} style={{ minHeight: '90px', background: dark ? 'rgba(255,255,255,0.01)' : '#fafbfc', borderRadius: '4px' }} />
               const dayProds = getProdsForDay(day)
               const todayStyle = isToday(day)
               return (
-                <div key={i} style={{ minHeight: '80px', padding: '4px', borderRadius: '6px', border: todayStyle ? '2px solid #1e6cb5' : `0.5px solid ${border}`, background: todayStyle ? (dark ? 'rgba(30,108,181,0.08)' : 'rgba(30,108,181,0.04)') : 'transparent' }}>
+                <div key={i} style={{ minHeight: '90px', padding: '4px', borderRadius: '6px', border: todayStyle ? '2px solid #1e6cb5' : `0.5px solid ${border}`, background: todayStyle ? (dark ? 'rgba(30,108,181,0.08)' : 'rgba(30,108,181,0.04)') : 'transparent', overflow: 'hidden' }}>
                   <div style={{ fontSize: '12px', fontWeight: todayStyle ? 700 : 400, color: todayStyle ? '#1e6cb5' : muted, marginBottom: '2px', textAlign: 'right' as const, padding: '2px 4px' }}>{day}</div>
                   {dayProds.slice(0, 3).map(p => {
                     const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#64748b'
                     return (
-                      <Link key={p.id} href={`/dashboard/productions/${p.production_number}`} style={{ textDecoration: 'none', display: 'block', fontSize: '11px', padding: '2px 4px', marginBottom: '1px', borderRadius: '3px', background: `${typeColor}18`, color: typeColor, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, borderLeft: `2px solid ${typeColor}` }}>
+                      <Link key={p.id} href={`/dashboard/productions/${p.production_number}`} style={{ textDecoration: 'none', display: 'block', fontSize: '10px', padding: '2px 4px', marginBottom: '1px', borderRadius: '3px', background: `${typeColor}18`, color: typeColor, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, borderLeft: `2px solid ${typeColor}`, maxWidth: '100%' }}>
                         {p.title}
                       </Link>
                     )
                   })}
-                  {dayProds.length > 3 && <div style={{ fontSize: '10px', color: muted, padding: '1px 4px' }}>+{dayProds.length - 3} more</div>}
+                  {dayProds.length > 3 && <div style={{ fontSize: '9px', color: muted, padding: '1px 4px' }}>+{dayProds.length - 3} more</div>}
                 </div>
               )
             })}
           </div>
         </div>
 
-        {/* Upcoming sidebar */}
-        <div>
-          <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden', position: 'sticky' as const, top: '80px' }}>
-            <div style={{ padding: '16px 18px', borderBottom: `1px solid ${border}` }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 600, color: text, margin: 0 }}>Coming up</h3>
-              <p style={{ fontSize: '12px', color: muted, margin: '4px 0 0' }}>Next 14 days</p>
-            </div>
-            {upcoming.length === 0 ? (
-              <p style={{ padding: '30px 18px', color: muted, fontSize: '14px', textAlign: 'center' as const, margin: 0 }}>Nothing scheduled</p>
-            ) : upcoming.map((p, i) => {
-              const d = new Date(p.start_datetime!)
-              const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#64748b'
-              return (
-                <Link key={p.id} href={`/dashboard/productions/${p.production_number}`} style={{ textDecoration: 'none', display: 'block', padding: '12px 18px', borderBottom: i < upcoming.length - 1 ? `0.5px solid ${border}` : 'none' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <div style={{ width: '4px', height: '28px', borderRadius: '2px', background: typeColor, flexShrink: 0 }} />
+        {/* Coming up — below calendar */}
+        {upcoming.length > 0 && (
+          <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: text, margin: '0 0 4px' }}>Coming up</h3>
+            <p style={{ fontSize: '12px', color: muted, margin: '0 0 14px' }}>Next 14 days</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
+              {upcoming.map(p => {
+                const d = new Date(p.start_datetime!)
+                const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#64748b'
+                return (
+                  <Link key={p.id} href={`/dashboard/productions/${p.production_number}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderRadius: '10px', border: `0.5px solid ${border}`, background: dark ? 'rgba(255,255,255,0.02)' : '#fafbfc' }}>
+                    <div style={{ width: '4px', height: '36px', borderRadius: '2px', background: typeColor, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{p.title}</p>
                       <p style={{ fontSize: '12px', color: muted, margin: '2px 0 0' }}>
@@ -158,19 +154,13 @@ export default function CalendarPage() {
                         {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                       </p>
                     </div>
-                  </div>
-                </Link>
-              )
-            })}
+                  </Link>
+                )
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
-
-      <style>{`
-        @media (max-width: 900px) {
-          div[style*="grid-template-columns: 1fr 320px"] { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </div>
   )
 }

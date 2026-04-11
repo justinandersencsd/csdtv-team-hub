@@ -88,6 +88,7 @@ export default function ProductionDetailPage() {
   const [newTaskPriority, setNewTaskPriority] = useState('normal')
   const [teamNotes, setTeamNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+  const [notesSaved, setNotesSaved] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
   const [emailTemplate, setEmailTemplate] = useState('')
   const [emailBody, setEmailBody] = useState('')
@@ -303,6 +304,8 @@ export default function ProductionDetailPage() {
     setSavingNotes(true)
     await supabase.from('productions').update({ team_notes: teamNotes }).eq('id', uuid)
     setSavingNotes(false)
+    setNotesSaved(true)
+    setTimeout(() => setNotesSaved(false), 3000)
   }, [uuid, teamNotes, supabase])
 
   const addLink = useCallback(async () => {
@@ -650,8 +653,8 @@ export default function ProductionDetailPage() {
               placeholder="Add internal notes about this production..."
               style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' as const, lineHeight: 1.5, marginBottom: '8px' }}
             />
-            <button onClick={saveTeamNotes} disabled={savingNotes} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: savingNotes ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
-              {savingNotes ? 'Saving...' : 'Save notes'}
+            <button onClick={saveTeamNotes} disabled={savingNotes} style={{ fontSize: '13px', padding: '7px 16px', borderRadius: '8px', background: notesSaved ? '#22c55e' : '#1e6cb5', color: '#fff', border: 'none', cursor: savingNotes ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: 500, transition: 'background 0.2s' }}>
+              {notesSaved ? '✓ Saved!' : savingNotes ? 'Saving...' : 'Save notes'}
             </button>
           </div>
         </div>

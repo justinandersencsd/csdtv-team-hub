@@ -64,6 +64,8 @@ export default function TasksPage() {
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list')
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null)
   const [subtasks, setSubtasks] = useState<Subtask[]>([])
   const [newSubtask, setNewSubtask] = useState('')
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
@@ -434,8 +436,28 @@ export default function TasksPage() {
                 {(['pending', 'in progress', 'complete'] as const).map(status => {
                   const col = filtered.filter(t => t.status === status)
                   const colStyle = STATUS_STYLES[status] || STATUS_STYLES['pending']
+                  const isOver = dragOverCol === status
                   return (
-                    <div key={status} style={{ background: dark ? 'rgba(255,255,255,0.02)' : '#f8fafc', borderRadius: '12px', padding: '12px', border: `0.5px solid ${border}` }}>
+                    <div key={status}
+                      onDragOver={e => { e.preventDefault(); setDragOverCol(status) }}
+                      onDragLeave={() => setDragOverCol(null)}
+                      onDrop={async e => {
+                        e.preventDefault(); setDragOverCol(null)
+                        if (!draggedTaskId) return
+                        const task = tasks.find(t => t.id === draggedTaskId)
+                        if (!task || task.status === status) return
+                        const isComplete = status === 'complete'
+                        await supabase.from('tasks').update({ status, completed_at: isComplete ? new Date().toISOString() : null }).eq('id', draggedTaskId)
+                        if (isComplete) {
+                          setTasks(prev => prev.filter(t => t.id !== draggedTaskId))
+                          setCompletedTasks(prev => [{ ...task, status: 'complete', completed_at: new Date().toISOString() }, ...prev])
+                        } else {
+                          setTasks(prev => prev.map(t => t.id === draggedTaskId ? { ...t, status, completed_at: null } : t))
+                        }
+                        setDraggedTaskId(null)
+                      }}
+                      style={{ background: isOver ? (dark ? 'rgba(30,108,181,0.08)' : 'rgba(30,108,181,0.06)') : (dark ? 'rgba(255,255,255,0.02)' : '#f8fafc'), borderRadius: '12px', padding: '12px', border: `${isOver ? '1.5px' : '0.5px'} solid ${isOver ? '#1e6cb5' : border}`, transition: 'all 0.15s' }}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                         <span style={{ fontSize: '12px', fontWeight: 700, color: colStyle.color, textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>{status}</span>
                         <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '10px', background: colStyle.bg, color: colStyle.color }}>{col.length}</span>
@@ -443,9 +465,14 @@ export default function TasksPage() {
                       {col.map(task => {
                         const dateInfo = formatDate(task.due_date)
                         const assignee = getMember(task.assigned_to)
+                        const isDragging = draggedTaskId === task.id
                         return (
-                          <div key={task.id} onClick={() => openTask(task)} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '12px', marginBottom: '8px', cursor: 'pointer', transition: 'border-color 0.15s' }}
-                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = '#1e6cb5'}
+                          <div key={task.id} draggable
+                            onDragStart={() => setDraggedTaskId(task.id)}
+                            onDragEnd={() => { setDraggedTaskId(null); setDragOverCol(null) }}
+                            onClick={() => openTask(task)}
+                            style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '12px', marginBottom: '8px', cursor: 'grab', transition: 'all 0.15s', opacity: isDragging ? 0.5 : 1 }}
+                            onMouseEnter={e => { if (!isDragging) (e.currentTarget as HTMLDivElement).style.borderColor = '#1e6cb5' }}
                             onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = border}
                           >
                             <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: '0 0 6px' }}>
@@ -463,6 +490,7 @@ export default function TasksPage() {
                           </div>
                         )
                       })}
+                      {col.length === 0 && <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0', opacity: 0.5 }}>Drop tasks here</p>}
                     </div>
                   )
                 })}
