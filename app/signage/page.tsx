@@ -72,7 +72,10 @@ export default function SignagePage() {
 
   const getSchoolName = (code: string | null | undefined): string => {
     if (!code) return ''
-    return schoolMap[code] || getSchoolNameFallback(code) || ''
+    const c = code.toString()
+    const padded = c.padStart(3, '0')
+    const stripped = c.replace(/^0+/, '') || '0'
+    return schoolMap[c] || schoolMap[padded] || schoolMap[stripped] || getSchoolNameFallback(code) || ''
   }
 
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())

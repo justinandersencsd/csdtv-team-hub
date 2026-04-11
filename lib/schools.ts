@@ -57,6 +57,9 @@ export const SCHOOLS: Record<string, string> = {
 
 export function getSchoolName(code: string | null | undefined): string {
   if (!code) return ''
-  const name = SCHOOLS[code.toString()]
-return name || code
+  const c = code.toString()
+  // Try exact match, then zero-padded to 3 digits, then stripped of leading zeros
+  const padded = c.padStart(3, '0')
+  const stripped = c.replace(/^0+/, '') || '0'
+  return SCHOOLS[c] || SCHOOLS[padded] || SCHOOLS[stripped] || ''
 }
