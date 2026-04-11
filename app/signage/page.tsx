@@ -66,7 +66,7 @@ export default function SignagePage() {
       supabase.from('schedule_defaults').select('*'),
       supabase.from('schedule_overrides').select('*'),
     ])
-    setProductions(prodsRes.data || [])
+    setProductions((prodsRes.data as any) || [])
     setTeam(teamRes.data || [])
     setSchedDefaults(defsRes.data || [])
     setSchedOverrides(ovrsRes.data || [])
