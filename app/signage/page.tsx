@@ -123,21 +123,21 @@ export default function SignagePage() {
       {/* Row 1: Title + Clock */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0 }}>
         <div>
-          <span style={{ fontSize: '20px', fontWeight: 700 }}>CSDtv Production Office</span>
-          {countdown && <span style={{ marginLeft: '16px', fontSize: '14px', color: muted }}>Next shoot in <span style={{ fontSize: '18px', fontWeight: 800, color: '#60b8f0' }}>{countdown.label}</span> — {countdown.sub}</span>}
+          <span style={{ fontSize: '26px', fontWeight: 700 }}>CSDtv Production Office</span>
+          {countdown && <span style={{ marginLeft: '16px', fontSize: '14px', color: muted }}>Next shoot in <span style={{ fontSize: '24px', fontWeight: 800, color: '#60b8f0' }}>{countdown.label}</span> — {countdown.sub}</span>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           {team.map(m => {
             const hrs = getHoursForUser(m.id)
-            return <span key={m.id} style={{ fontSize: '12px', color: hrs ? '#ccd5e8' : dimmed }}><span style={{ display: 'inline-block', width: '18px', height: '18px', borderRadius: '50%', background: m.avatar_color, textAlign: 'center' as const, lineHeight: '18px', fontSize: '8px', fontWeight: 700, color: '#0a0f1e', marginRight: '4px', verticalAlign: 'middle' }}>{getInitials(m.name)}</span>{m.name.split(' ')[0]} <span style={{ color: hrs ? '#34d399' : dimmed, fontWeight: 600 }}>{hrs || 'Off'}</span></span>
+            return <span key={m.id} style={{ fontSize: '14px', color: hrs ? '#ccd5e8' : dimmed }}><span style={{ display: 'inline-block', width: '24px', height: '24px', borderRadius: '50%', background: m.avatar_color, textAlign: 'center' as const, lineHeight: '24px', fontSize: '10px', fontWeight: 700, color: '#0a0f1e', marginRight: '4px', verticalAlign: 'middle' }}>{getInitials(m.name)}</span>{m.name.split(' ')[0]} <span style={{ color: hrs ? '#34d399' : dimmed, fontWeight: 600 }}>{hrs || 'Off'}</span></span>
           })}
-          <span style={{ fontSize: '16px', fontWeight: 500, color: '#ccd5e8' }}>{now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-          <span style={{ fontSize: '24px', fontWeight: 800, color: '#60b8f0' }}>{now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+          <span style={{ fontSize: '18px', fontWeight: 500, color: '#ccd5e8' }}>{now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+          <span style={{ fontSize: '32px', fontWeight: 800, color: '#60b8f0' }}>{now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
         </div>
       </div>
 
       {/* Row 2: Stats */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexShrink: 0, fontSize: '13px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexShrink: 0, fontSize: '15px' }}>
         <span style={{ background: cardBg, border: `1px solid ${gridBorder}`, borderRadius: '8px', padding: '5px 12px' }}><span style={{ color: '#60b8f0', fontWeight: 700 }}>THIS WEEK</span> <span style={{ fontWeight: 600 }}>{thisWeekProds.length}</span> production{thisWeekProds.length !== 1 ? 's' : ''}</span>
         <span style={{ background: cardBg, border: `1px solid ${gridBorder}`, borderRadius: '8px', padding: '5px 12px' }}><span style={{ color: '#34d399', fontWeight: 700 }}>YEAR</span> <span style={{ fontWeight: 600 }}>{ytdCompleted}</span> completed of {ytdTotal}</span>
         {inProgressProds.length > 0 && <span style={{ background: cardBg, border: '1px solid rgba(251,191,36,0.2)', borderRadius: '8px', padding: '5px 12px' }}><span style={{ color: '#fbbf24', fontWeight: 700 }}>IN PROGRESS</span> {inProgressProds.map(p => p.title).join(' · ')}</span>}
@@ -158,7 +158,7 @@ export default function SignagePage() {
             <div key={d} style={{
               background: isToday ? 'rgba(96,184,240,0.08)' : '#111d30',
               borderBottom: `1px solid ${gridBorder}`, borderRight: i < 6 ? `1px solid ${gridBorder}` : 'none',
-              padding: '6px', textAlign: 'center' as const, fontSize: '13px', fontWeight: 800,
+              padding: '8px', textAlign: 'center' as const, fontSize: '15px', fontWeight: 800,
               color: isToday ? '#60b8f0' : '#ccd5e8', letterSpacing: '1px',
             }}>{d}</div>
           )
@@ -175,7 +175,7 @@ export default function SignagePage() {
               background: isThisWeek ? 'rgba(96,184,240,0.06)' : 'transparent',
               borderBottom: wi < 4 ? `1px solid ${gridBorder}` : 'none',
               borderRight: `1px solid ${gridBorder}`,
-              padding: '6px 4px', fontSize: '10px', fontWeight: 700,
+              padding: '8px 4px', fontSize: '12px', fontWeight: 700,
               color: isThisWeek ? '#60b8f0' : muted, textAlign: 'center' as const,
               display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '8px',
             }}>{weekLabel}</div>,
@@ -197,7 +197,7 @@ export default function SignagePage() {
                   borderLeft: todayCell ? '3px solid #60b8f0' : 'none',
                   padding: '2px 3px', opacity, overflow: 'hidden' as const,
                 }}>
-                  <div style={{ fontSize: '11px', color: todayCell ? '#60b8f0' : '#99aabb', fontWeight: todayCell ? 800 : 500, textAlign: 'right' as const, marginBottom: '1px' }}>{date.getDate()}</div>
+                  <div style={{ fontSize: '14px', color: todayCell ? '#60b8f0' : '#99aabb', fontWeight: todayCell ? 800 : 500, textAlign: 'right' as const, marginBottom: '2px' }}>{date.getDate()}</div>
                   {dayProds.map(p => {
                     const tc = TYPE_COLORS[p.request_type_label || ''] || '#94a3b8'
                     const members = p.production_members || []
@@ -209,17 +209,17 @@ export default function SignagePage() {
                     const loc = getSchoolName(p.school_department) || p.filming_location || ''
                     return (
                       <div key={p.id} style={{
-                        padding: '2px 4px', marginBottom: '1px', borderRadius: '3px',
+                        padding: '3px 5px', marginBottom: '2px', borderRadius: '4px',
                         background: done ? 'rgba(255,255,255,0.02)' : `${tc}18`,
                         borderLeft: `3px solid ${done ? '#444' : tc}`,
                         opacity: done ? 0.4 : 1,
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: active ? 700 : 600, color: done ? dimmed : tc, flex: 1, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const, textDecoration: done ? 'line-through' : 'none' }}>{p.title}</span>
-                          {ini && <span style={{ fontSize: '8px', color: done ? dimmed : muted, flexShrink: 0 }}>{ini}</span>}
+                          <span style={{ fontSize: '14px', fontWeight: active ? 700 : 600, color: done ? dimmed : tc, flex: 1, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const, textDecoration: done ? 'line-through' : 'none' }}>{p.title}</span>
+                          {ini && <span style={{ fontSize: '11px', color: done ? dimmed : muted, flexShrink: 0 }}>{ini}</span>}
                         </div>
                         {(time || loc) && !done && (
-                          <div style={{ fontSize: '9px', color: '#7a90aa', overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>
+                          <div style={{ fontSize: '12px', color: '#8aa0bc', overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }}>
                             {time}{time && loc ? ' · ' : ''}{loc}
                           </div>
                         )}
