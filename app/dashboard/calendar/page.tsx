@@ -39,7 +39,7 @@ export default function CalendarPage() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
     const { data } = await supabase.from('productions').select('id, production_number, title, request_type_label, status, start_datetime, end_datetime, organizer_name, filming_location, school_department, production_members(user_id, team(name, avatar_color))').not('start_datetime', 'is', null).order('start_datetime')
-    setProductions(data || [])
+    setProductions((data as any) || [])
     setLoading(false)
   }, [supabase])
 
