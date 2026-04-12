@@ -367,6 +367,13 @@ function ProductionsPageContent() {
         </div>
       </div>
 
+      {/* Health dot legend */}
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '14px', fontSize: '12px', color: muted, alignItems: 'center' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} /> Unassigned</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} /> Approaching — checklist incomplete</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /> Checklist complete</span>
+      </div>
+
       {/* PIPELINE VIEW */}
       {view === 'pipeline' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'start' }}>

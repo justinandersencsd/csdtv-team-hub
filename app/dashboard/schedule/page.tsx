@@ -323,6 +323,18 @@ export default function SchedulePage() {
     return Math.round(total * 10) / 10
   })()
 
+  // Weekly hours for each week visible in the calendar
+  const getWeekHours = (weekStart: Date): number => {
+    let total = 0
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart)
+      d.setDate(d.getDate() + i)
+      const h = getHoursForDay(d)
+      if (h) total += parseHours(h)
+    }
+    return Math.round(total * 10) / 10
+  }
+
   // ─── Save default ─────────────────────────────────────────────────────────
   const saveDefault = useCallback(async () => {
     if (!currentUser) return
@@ -485,6 +497,13 @@ export default function SchedulePage() {
           <span style={{ fontSize: '13px', color: text, fontWeight: 500 }}>{ppWeekdays} weekdays</span>
           <span style={{ width: '1px', height: '14px', background: border, flexShrink: 0 }} />
           <span style={{ fontSize: '13px', color: ppTotalHours > 0 ? '#22c55e' : muted, fontWeight: 600 }}>{ppTotalHours}h scheduled</span>
+          <span style={{ width: '1px', height: '14px', background: border, flexShrink: 0 }} />
+          {(() => {
+            const today = new Date()
+            const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7)); monday.setHours(0,0,0,0)
+            const weekHrs = getWeekHours(monday)
+            return <span style={{ fontSize: '13px', color: weekHrs > 0 ? '#60b8f0' : muted, fontWeight: 600 }}>This week: {weekHrs}h</span>
+          })()}
           <span style={{ width: '1px', height: '14px', background: border, flexShrink: 0 }} />
           <span style={{ fontSize: '13px', color: muted }}>Cutoff <strong style={{ color: text }}>{fmt(primaryPP.cutoff, { month: 'short', day: 'numeric' })}</strong></span>
           <span style={{ fontSize: '13px', color: muted }}>Payday <strong style={{ color: '#22c55e' }}>{fmt(primaryPP.payday, { month: 'short', day: 'numeric' })}</strong></span>

@@ -12,6 +12,7 @@ interface Production {
   request_type_label: string | null; status: string | null
   start_datetime: string | null; end_datetime: string | null
   organizer_name: string | null; filming_location: string | null; school_department: string | null
+  production_members?: { user_id: string; team: { name: string; avatar_color: string } | null }[]
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -37,7 +38,7 @@ export default function CalendarPage() {
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-    const { data } = await supabase.from('productions').select('id, production_number, title, request_type_label, status, start_datetime, end_datetime, organizer_name, filming_location, school_department').not('start_datetime', 'is', null).order('start_datetime')
+    const { data } = await supabase.from('productions').select('id, production_number, title, request_type_label, status, start_datetime, end_datetime, organizer_name, filming_location, school_department, production_members(user_id, team(name, avatar_color))').not('start_datetime', 'is', null).order('start_datetime')
     setProductions(data || [])
     setLoading(false)
   }, [supabase])
@@ -123,8 +124,9 @@ export default function CalendarPage() {
                   {dayProds.slice(0, 3).map(p => {
                     const typeColor = TYPE_COLORS[p.request_type_label || ''] || '#64748b'
                     return (
-                      <Link key={p.id} href={`/dashboard/productions/${p.production_number}`} style={{ textDecoration: 'none', display: 'block', fontSize: '10px', padding: '2px 4px', marginBottom: '1px', borderRadius: '3px', background: `${typeColor}18`, color: typeColor, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, borderLeft: `2px solid ${typeColor}`, maxWidth: '100%' }}>
-                        {p.title}
+                      <Link key={p.id} href={`/dashboard/productions/${p.production_number}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', padding: '2px 4px', marginBottom: '1px', borderRadius: '3px', background: `${typeColor}18`, color: typeColor, fontWeight: 500, borderLeft: `2px solid ${typeColor}`, maxWidth: '100%' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, flex: 1 }}>{p.title}</span>
+                        {(p.production_members || []).length > 0 && <span style={{ fontSize: '8px', color: muted, flexShrink: 0 }}>{(p.production_members || []).map(m => m.team ? m.team.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '').filter(Boolean).join(' ')}</span>}
                       </Link>
                     )
                   })}
@@ -155,6 +157,13 @@ export default function CalendarPage() {
                         {d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                       </p>
                     </div>
+                    {(p.production_members || []).length > 0 && (
+                      <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                        {(p.production_members || []).map((m, i) => m.team && (
+                          <div key={i} style={{ width: '22px', height: '22px', borderRadius: '50%', background: m.team.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 700, color: '#0a0f1e' }}>{m.team.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}</div>
+                        ))}
+                      </div>
+                    )}
                   </Link>
                 )
               })}

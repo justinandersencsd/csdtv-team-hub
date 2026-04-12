@@ -412,13 +412,14 @@ export default function DashboardPage() {
       )}
 
       {/* Recent activity */}
-      {recentActivity.length > 0 && (
-        <div style={{ marginTop: '20px' }}>
-          <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden' }}>
-            <div style={{ padding: '18px 20px', borderBottom: `1px solid ${border}` }}>
-              <h2 style={{ fontSize: '17px', fontWeight: 700, color: text, margin: 0 }}>Recent activity</h2>
-            </div>
-            {recentActivity.map((a, i) => {
+      <div style={{ marginTop: '20px' }}>
+        <div style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden' as const }}>
+          <div style={{ padding: '18px 20px', borderBottom: `1px solid ${border}` }}>
+            <h2 style={{ fontSize: '17px', fontWeight: 700, color: text, margin: 0 }}>Recent activity</h2>
+          </div>
+          {recentActivity.length === 0 ? (
+            <p style={{ padding: '24px 20px', color: muted, fontSize: '14px', margin: 0, textAlign: 'center' as const }}>No recent activity — actions on productions will appear here</p>
+          ) : recentActivity.map((a, i) => {
               const time = new Date(a.created_at)
               const diff = Date.now() - time.getTime()
               const mins = Math.floor(diff / 60000)
@@ -439,7 +440,6 @@ export default function DashboardPage() {
             })}
           </div>
         </div>
-      )}
 
       <style>{`
         @media (min-width: 640px) {

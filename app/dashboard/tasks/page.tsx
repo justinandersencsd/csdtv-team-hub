@@ -78,6 +78,7 @@ export default function TasksPage() {
   const [templates, setTemplates] = useState<TaskTemplate[]>([])
   const [showTemplates, setShowTemplates] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState('')
+  const [subtaskCounts, setSubtaskCounts] = useState<Record<string, { total: number; done: number }>>({})
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
@@ -105,6 +106,15 @@ export default function TasksPage() {
     // Load templates
     const { data: tplData } = await supabase.from('task_templates').select('*, items:task_template_items(*)').order('name')
     setTemplates((tplData || []).map((t: any) => ({ ...t, items: t.items?.sort((a: any, b: any) => a.sort_order - b.sort_order) })))
+    // Load subtask counts
+    const { data: allSubs } = await supabase.from('subtasks').select('task_id, completed')
+    const counts: Record<string, { total: number; done: number }> = {}
+    ;(allSubs || []).forEach((s: any) => {
+      if (!counts[s.task_id]) counts[s.task_id] = { total: 0, done: 0 }
+      counts[s.task_id].total++
+      if (s.completed) counts[s.task_id].done++
+    })
+    setSubtaskCounts(counts)
     setLoading(false)
   }, [supabase])
 
@@ -560,6 +570,7 @@ export default function TasksPage() {
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 {task.priority !== 'normal' && <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: (PRIORITY_STYLES[task.priority] || PRIORITY_STYLES['normal']).bg, color: (PRIORITY_STYLES[task.priority] || PRIORITY_STYLES['normal']).color }}>{task.priority}</span>}
                                 {dateInfo && <span style={{ fontSize: '11px', color: dateInfo.color, fontWeight: 500 }}>{dateInfo.label}</span>}
+                                {subtaskCounts[task.id] && <span style={{ fontSize: '10px', color: subtaskCounts[task.id].done === subtaskCounts[task.id].total ? '#22c55e' : muted }}>☑ {subtaskCounts[task.id].done}/{subtaskCounts[task.id].total}</span>}
                               </div>
                               {assignee && <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: assignee.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 700, color: '#0a0f1e' }}>{assignee.name.slice(0, 2).toUpperCase()}</div>}
                             </div>
@@ -605,6 +616,7 @@ export default function TasksPage() {
                             {task.title}
                           </p>
                           {task.productions?.title && <p style={{ fontSize: '13px', color: '#5ba3e0', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>🎬 #{task.productions.production_number} {task.productions.title}</p>}
+                          {subtaskCounts[task.id] && <p style={{ fontSize: '12px', color: subtaskCounts[task.id].done === subtaskCounts[task.id].total ? '#22c55e' : muted, margin: '2px 0 0' }}>☑ {subtaskCounts[task.id].done}/{subtaskCounts[task.id].total} subtasks</p>}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                           {isCompleting ? <span style={{ fontSize: '13px', color: '#22c55e', fontWeight: 500 }}>Done ✓</span> : (
