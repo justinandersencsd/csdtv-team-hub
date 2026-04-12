@@ -20,11 +20,14 @@ interface Task {
   due_date: string | null; created_at: string; assigned_to: string | null; created_by: string
   production_id: string | null; needs_equipment: boolean; notes: string | null
   completed_at: string | null; recurring: string | null; recurring_interval: number | null
+  blocked_by: string | null
   productions?: { id: string; title: string; production_number: number; request_type_label: string | null; start_datetime: string | null; status: string | null } | null
 }
 
 interface TeamMember { id: string; name: string; role: string; avatar_color: string; email: string }
 interface CurrentUser { id: string; name: string; role: string }
+interface TaskTemplate { id: string; name: string; description: string | null; items?: TaskTemplateItem[] }
+interface TaskTemplateItem { id: string; title: string; description: string | null; priority: string; due_offset_days: number | null; sort_order: number }
 
 const PRIORITIES = ['low', 'normal', 'high', 'day of']
 const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
@@ -72,6 +75,9 @@ export default function TasksPage() {
   const [newTimeHours, setNewTimeHours] = useState('')
   const [newTimeDesc, setNewTimeDesc] = useState('')
   const [detailTab, setDetailTab] = useState<'details' | 'subtasks' | 'time' | 'comments'>('details')
+  const [templates, setTemplates] = useState<TaskTemplate[]>([])
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [newTemplateName, setNewTemplateName] = useState('')
 
   const text    = dark ? '#f0f4ff' : '#1a1f36'
   const muted   = dark ? '#8899bb' : '#6b7280'
@@ -96,12 +102,47 @@ export default function TasksPage() {
     setTeam(teamRes.data || [])
     setCurrentUser(userRes.data)
     setAllProductions(prodsRes.data || [])
+    // Load templates
+    const { data: tplData } = await supabase.from('task_templates').select('*, items:task_template_items(*)').order('name')
+    setTemplates((tplData || []).map((t: any) => ({ ...t, items: t.items?.sort((a: any, b: any) => a.sort_order - b.sort_order) })))
     setLoading(false)
   }, [supabase])
 
   useEffect(() => { loadData() }, [loadData])
 
   const getMember = (id: string | null) => id ? team.find(m => m.id === id) || null : null
+
+  // Template functions
+  const saveAsTemplate = async () => {
+    if (!newTemplateName.trim() || !currentUser) return
+    const openTasks = tasks.filter(t => t.status !== 'complete')
+    if (openTasks.length === 0) return
+    const { data: tpl } = await supabase.from('task_templates').insert({ name: newTemplateName.trim(), created_by: currentUser.id }).select('*').single()
+    if (!tpl) return
+    const items = openTasks.map((t, i) => ({ template_id: tpl.id, title: t.title, description: t.description, priority: t.priority, due_offset_days: 0, sort_order: i }))
+    const { data: itemsData } = await supabase.from('task_template_items').insert(items).select('*')
+    setTemplates(prev => [...prev, { ...tpl, items: itemsData || [] }])
+    setNewTemplateName('')
+    setShowTemplates(false)
+  }
+
+  const applyTemplate = async (template: TaskTemplate, productionId?: string) => {
+    if (!currentUser || !template.items) return
+    const today = new Date()
+    const inserts = template.items.map(item => ({
+      title: item.title, description: item.description, priority: item.priority, status: 'pending',
+      created_by: currentUser.id, production_id: productionId || null,
+      due_date: item.due_offset_days ? new Date(today.getTime() + item.due_offset_days * 86400000).toISOString().split('T')[0] : null,
+    }))
+    const { data } = await supabase.from('tasks').select('*, productions(id,title,production_number,request_type_label,start_datetime,status)').in('id', (await supabase.from('tasks').insert(inserts).select('id')).data?.map((d: any) => d.id) || [])
+    if (data) setTasks(prev => [...data, ...prev])
+    setShowTemplates(false)
+  }
+
+  const deleteTemplate = async (id: string) => {
+    await supabase.from('task_templates').delete().eq('id', id)
+    setTemplates(prev => prev.filter(t => t.id !== id))
+  }
 
   const openTask = async (task: Task) => {
     setSelectedTask(task); setPanelNotes(task.notes || ''); setEditTitle(task.title); setEditDescription(task.description || ''); setDetailTab('details')
@@ -338,10 +379,16 @@ export default function TasksPage() {
             <h1 style={{ fontSize: '26px', fontWeight: 700, color: text, margin: 0 }}>Tasks</h1>
             <p style={{ fontSize: '14px', color: muted, margin: '2px 0 0' }}>{openCount} open · {completedTasks.length} completed</p>
           </div>
-          <button onClick={() => setShowNewTask(!showNewTask)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', padding: '10px 18px', borderRadius: '10px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            New task
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => setShowTemplates(!showTemplates)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', padding: '10px 18px', borderRadius: '10px', background: cardBg, color: muted, border: `0.5px solid ${border}`, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              Templates
+            </button>
+            <button onClick={() => setShowNewTask(!showNewTask)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', padding: '10px 18px', borderRadius: '10px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New task
+            </button>
+          </div>
         </div>
 
         {/* Tabs: Open / Completed + View toggle */}
@@ -364,6 +411,34 @@ export default function TasksPage() {
             </div>
           )}
         </div>
+
+        {/* Templates panel */}
+        {showTemplates && (
+          <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', padding: '18px', marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 500, color: text, margin: '0 0 14px' }}>Task templates</h3>
+            {templates.length === 0 ? (
+              <p style={{ fontSize: '14px', color: muted, margin: '0 0 14px' }}>No templates yet. Create one from your current open tasks.</p>
+            ) : (
+              <div style={{ marginBottom: '14px' }}>
+                {templates.map(tpl => (
+                  <div key={tpl.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: `0.5px solid ${border}` }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '14px', fontWeight: 500, color: text, margin: 0 }}>{tpl.name}</p>
+                      <p style={{ fontSize: '12px', color: muted, margin: '2px 0 0' }}>{tpl.items?.length || 0} tasks</p>
+                    </div>
+                    <button onClick={() => applyTemplate(tpl)} style={{ fontSize: '13px', padding: '6px 14px', borderRadius: '8px', background: '#1e6cb5', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Apply</button>
+                    <button onClick={() => { if (confirm(`Delete template "${tpl.name}"?`)) deleteTemplate(tpl.id) }} style={{ fontSize: '13px', padding: '6px 10px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '0.5px solid rgba(239,68,68,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveAsTemplate()} placeholder="Template name..." style={{ ...inputStyle, flex: 1, fontSize: '14px' }} />
+              <button onClick={saveAsTemplate} disabled={!newTemplateName.trim() || tasks.length === 0} style={{ fontSize: '13px', padding: '8px 16px', borderRadius: '8px', background: newTemplateName.trim() ? '#1e6cb5' : (dark ? '#1a2540' : '#e2e8f0'), color: newTemplateName.trim() ? '#fff' : muted, border: 'none', cursor: newTemplateName.trim() ? 'pointer' : 'default', fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap' as const }}>Save current tasks as template</button>
+            </div>
+            <p style={{ fontSize: '12px', color: muted, margin: '8px 0 0' }}>Saving captures all {tasks.length} open tasks as a reusable template.</p>
+          </div>
+        )}
 
         {/* New task form */}
         {showNewTask && (
@@ -478,6 +553,7 @@ export default function TasksPage() {
                             <p style={{ fontSize: '13px', fontWeight: 500, color: text, margin: '0 0 6px' }}>
                               {task.needs_equipment && <span style={{ marginRight: '4px' }}>📦</span>}
                               {task.recurring && <span style={{ marginRight: '4px', fontSize: '11px' }}>🔁</span>}
+                              {task.blocked_by && <span style={{ marginRight: '4px', fontSize: '11px' }}>🔒</span>}
                               {task.title}
                             </p>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -525,6 +601,7 @@ export default function TasksPage() {
                           <p style={{ fontSize: '15px', color: isCompleting ? muted : text, margin: 0, fontWeight: 500, textDecoration: isCompleting ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                             {task.needs_equipment && <span style={{ marginRight: '5px' }}>📦</span>}
                             {task.recurring && <span style={{ marginRight: '5px', fontSize: '12px' }}>🔁</span>}
+                            {task.blocked_by && <span style={{ marginRight: '5px', fontSize: '12px' }}>🔒</span>}
                             {task.title}
                           </p>
                           {task.productions?.title && <p style={{ fontSize: '13px', color: '#5ba3e0', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>🎬 #{task.productions.production_number} {task.productions.title}</p>}
@@ -680,6 +757,20 @@ export default function TasksPage() {
                   onClick={() => updateTask(selectedTask.id, { needs_equipment: !selectedTask.needs_equipment })}>
                   <input type="checkbox" checked={selectedTask.needs_equipment} onChange={() => {}} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
                   <span style={{ fontSize: '14px', color: selectedTask.needs_equipment ? '#f97316' : muted, fontWeight: selectedTask.needs_equipment ? 600 : 400 }}>📦 Needs equipment pulled</span>
+                </div>
+
+                <div style={{ marginBottom: '14px' }}>
+                  <p style={{ fontSize: '12px', color: muted, margin: '0 0 4px' }}>Blocked by</p>
+                  <select value={selectedTask.blocked_by || ''} onChange={e => updateTask(selectedTask.id, { blocked_by: e.target.value || null } as Partial<Task>)} style={{ ...inputStyle, fontSize: '14px' }}>
+                    <option value="">Not blocked</option>
+                    {tasks.filter(t => t.id !== selectedTask.id).map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                  </select>
+                  {selectedTask.blocked_by && (() => {
+                    const blocker = tasks.find(t => t.id === selectedTask.blocked_by)
+                    return blocker ? (
+                      <p style={{ fontSize: '12px', color: '#f59e0b', margin: '6px 0 0' }}>🔒 Waiting on: {blocker.title} ({blocker.status})</p>
+                    ) : null
+                  })()}
                 </div>
 
                 <div style={{ marginBottom: '14px' }}>

@@ -41,6 +41,9 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'overview' | 'productions' | 'team' | 'videos' | 'equipment' | 'value'>('overview')
   const [yearFilter, setYearFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
+  const [dateStart, setDateStart] = useState('')
+  const [dateEnd, setDateEnd] = useState('')
 
   const [productions, setProductions] = useState<Production[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -83,10 +86,26 @@ export default function ReportsPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  // Filtered data by school year
+  // Filtered data
   const years = [...new Set(productions.map(p => p.school_year).filter(Boolean))] as string[]
-  const fp = yearFilter ? productions.filter(p => p.school_year === yearFilter) : productions
-  const fv = videos // videos don't have school_year filter for now
+  const types = [...new Set(productions.map(p => p.request_type_label).filter(Boolean))] as string[]
+  const fp = productions.filter(p => {
+    if (yearFilter && p.school_year !== yearFilter) return false
+    if (typeFilter && p.request_type_label !== typeFilter) return false
+    if (dateStart && p.start_datetime && new Date(p.start_datetime) < new Date(dateStart)) return false
+    if (dateEnd && p.start_datetime && new Date(p.start_datetime) > new Date(dateEnd + 'T23:59:59')) return false
+    return true
+  })
+  const fv = videos
+
+  // CSV export
+  const exportCSV = (filename: string, headers: string[], rows: string[][]) => {
+    const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${(c || '').replace(/"/g, '""')}"`).join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `${filename}.csv`; a.click()
+    URL.revokeObjectURL(url)
+  }
 
   // Helpers
   const pctBar = (value: number, max: number, color: string) => {
@@ -229,24 +248,55 @@ export default function ReportsPage() {
 
   return (
     <div style={{ maxWidth: '1600px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px', flexWrap: 'wrap' as const, gap: '12px' }}>
         <div>
           <h1 style={{ fontSize: '26px', fontWeight: 700, color: text, margin: 0 }}>Reports</h1>
           <p style={{ fontSize: '14px', color: muted, margin: '4px 0 0' }}>Data-driven insights for CSDtv</p>
         </div>
-        <select value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '10px 14px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}>
-          <option value="">All school years</option>
-          {years.map(y => <option key={y} value={y}>{Number(y) - 1}–{y}</option>)}
-        </select>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' as const }}>
+          <select value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '8px 12px', fontSize: '13px', color: text, fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}>
+            <option value="">All years</option>
+            {years.map(y => <option key={y} value={y}>{Number(y) - 1}–{y}</option>)}
+          </select>
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '8px 12px', fontSize: '13px', color: text, fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}>
+            <option value="">All types</option>
+            {types.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} placeholder="Start" style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '8px 12px', fontSize: '13px', color: text, fontFamily: 'inherit', outline: 'none' }} />
+          <input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} placeholder="End" style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '8px 12px', fontSize: '13px', color: text, fontFamily: 'inherit', outline: 'none' }} />
+          {(yearFilter || typeFilter || dateStart || dateEnd) && (
+            <button onClick={() => { setYearFilter(''); setTypeFilter(''); setDateStart(''); setDateEnd('') }} style={{ fontSize: '12px', padding: '8px 12px', borderRadius: '10px', background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '0.5px solid rgba(239,68,68,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+              Clear filters
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: `1px solid ${border}`, overflowX: 'auto' as const }}>
+      {/* Tabs + Export */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: `1px solid ${border}` }}>
+        <div style={{ display: 'flex', gap: '4px', overflowX: 'auto' as const }}>
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{ background: 'none', border: 'none', borderBottom: tab === t.key ? '2px solid #5ba3e0' : '2px solid transparent', padding: '10px 16px', fontSize: '14px', fontWeight: tab === t.key ? 600 : 400, color: tab === t.key ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const }}>
             {t.label}
           </button>
         ))}
+        </div>
+        <button onClick={() => {
+          if (tab === 'overview' || tab === 'productions') {
+            exportCSV(`csdtv-productions-${tab}`, ['#', 'Title', 'Type', 'Status', 'School', 'Date', 'School Year'], fp.map(p => [String(p.production_number), p.title, p.request_type_label || '', p.status || '', p.school_department || '', p.start_datetime ? new Date(p.start_datetime).toLocaleDateString() : '', p.school_year || '']))
+          } else if (tab === 'team') {
+            exportCSV('csdtv-team-workload', ['Name', 'Role', 'Productions', 'Open Tasks', 'Done Tasks'], teamWorkload.map(m => [m.name, m.role, String(m.prodsAssigned), String(m.openTasks), String(m.doneTasks)]))
+          } else if (tab === 'videos') {
+            exportCSV('csdtv-videos', ['Title', 'Type', 'Status', 'Published'], fv.map(v => [v.title, v.video_type, v.status, v.date_published || '']))
+          } else if (tab === 'equipment') {
+            exportCSV('csdtv-equipment', ['Asset Tag', 'Name', 'Status'], equipment.map(e => [e.asset_tag, e.name, e.status]))
+          } else if (tab === 'value') {
+            exportCSV('csdtv-cost-savings', ['Type', 'Count', 'Rate', 'Total'], costByType.map(([type, cost]) => { const count = fp.filter(p => (p.request_type_label || 'Other') === type).length; return [type, String(count), String(EXTERNAL_COSTS[type] || 400), String(cost)] }))
+          }
+        }} style={{ fontSize: '13px', padding: '7px 14px', borderRadius: '8px', background: cardBg, border: `0.5px solid ${border}`, color: muted, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px', flexShrink: 0 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
       </div>
 
       {/* OVERVIEW */}
