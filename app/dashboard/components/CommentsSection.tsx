@@ -138,7 +138,7 @@ export default function CommentsSection({ entityType, entityId, currentUserId, t
     <div>
       {/* Comment list */}
       {comments.length === 0 ? (
-        <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '20px 0' }}>No comments yet — start the conversation</p>
+        <p style={{ fontSize: '13px', color: muted, textAlign: 'center' as const, padding: '20px 0' }}>No comments yet — start the conversation</p>
       ) : (
         <div style={{ marginBottom: '12px' }}>
           {comments.map(c => {
@@ -183,7 +183,7 @@ export default function CommentsSection({ entityType, entityId, currentUserId, t
             onChange={e => handleInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Write a comment... Use @ to mention someone"
-            style={{ flex: 1, background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '13px', color: text, fontFamily: 'inherit', outline: 'none', resize: 'none', minHeight: '38px', maxHeight: '120px', boxSizing: 'border-box' as const }}
+            style={{ flex: 1, background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '13px', color: text, fontFamily: 'inherit', outline: 'none', resize: 'none' as const, minHeight: '38px', maxHeight: '120px', boxSizing: 'border-box' as const }}
             rows={1}
           />
           <button onClick={postComment} disabled={!newComment.trim() || posting} style={{ padding: '9px 14px', borderRadius: '8px', background: newComment.trim() ? '#1e6cb5' : (dark ? '#1a2540' : '#e2e8f0'), color: newComment.trim() ? '#fff' : muted, border: 'none', cursor: newComment.trim() ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: '13px', fontWeight: 500, flexShrink: 0, minHeight: '38px' }}>

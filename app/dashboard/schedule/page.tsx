@@ -545,7 +545,7 @@ export default function SchedulePage() {
         {/* Day-of-week headers */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: `0.5px solid ${border}` }}>
           {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, i) => (
-            <div key={d} style={{ padding: '10px 0', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: (i === 0 || i === 6) ? (dark ? 'rgba(136,153,187,0.5)' : 'rgba(107,114,128,0.5)') : muted, letterSpacing: '0.5px', textTransform: 'uppercase' as const, background: (i === 0 || i === 6) ? wkendBg : 'transparent' }}>
+            <div key={d} style={{ padding: '10px 0', textAlign: 'center' as const, fontSize: '12px', fontWeight: 600, color: (i === 0 || i === 6) ? (dark ? 'rgba(136,153,187,0.5)' : 'rgba(107,114,128,0.5)') : muted, letterSpacing: '0.5px', textTransform: 'uppercase' as const, background: (i === 0 || i === 6) ? wkendBg : 'transparent' }}>
               {d}
             </div>
           ))}

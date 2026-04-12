@@ -150,7 +150,7 @@ export default function QuickLinksPage() {
       )}
 
       {Object.keys(grouped).length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px' }}>
+        <div style={{ textAlign: 'center' as const, padding: '60px 20px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px' }}>
           <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: '0 0 6px' }}>
             {links.length === 0 ? 'No links yet' : 'No links in this category'}
           </p>

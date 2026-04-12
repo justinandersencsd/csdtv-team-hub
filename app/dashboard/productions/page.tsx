@@ -382,7 +382,7 @@ function ProductionsPageContent() {
             <div style={{ background: colBg, border: `0.5px solid ${border}`, borderRadius: '14px', padding: '16px' }}>
               <ColHeader label="Idea / Request" count={ideaRequest.length} color="#94a3b8" />
               {ideaRequest.length === 0 ? (
-                <p style={{ fontSize: '14px', color: muted, textAlign: 'center', padding: '24px 0', margin: 0 }}>No incoming requests</p>
+                <p style={{ fontSize: '14px', color: muted, textAlign: 'center' as const, padding: '24px 0', margin: 0 }}>No incoming requests</p>
               ) : ideaRequest.map(p => <ProductionCard key={p.id} prod={p} />)}
             </div>
           </div>
@@ -392,7 +392,7 @@ function ProductionsPageContent() {
             <div style={{ background: colBg, border: `0.5px solid ${border}`, borderRadius: '14px', padding: '16px', marginBottom: '14px' }}>
               <ColHeader label="Approved / Scheduled" count={approved.length} color="#22c55e" />
               {approved.length === 0 ? (
-                <p style={{ fontSize: '14px', color: muted, textAlign: 'center', padding: '24px 0', margin: 0 }}>No approved productions</p>
+                <p style={{ fontSize: '14px', color: muted, textAlign: 'center' as const, padding: '24px 0', margin: 0 }}>No approved productions</p>
               ) : approved.map(p => <ProductionCard key={p.id} prod={p} />)}
             </div>
             {other.length > 0 && (
@@ -400,7 +400,7 @@ function ProductionsPageContent() {
                 <ColHeader label="Complete / Other" count={other.length} color="#5ba3e0" />
                 {other.slice(0, 10).map(p => <ProductionCard key={p.id} prod={p} />)}
                 {other.length > 10 && (
-                  <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '8px 0 0', margin: 0 }}>
+                  <p style={{ fontSize: '13px', color: muted, textAlign: 'center' as const, padding: '8px 0 0', margin: 0 }}>
                     {other.length - 10} more — switch to List view to see all
                   </p>
                 )}
@@ -414,7 +414,7 @@ function ProductionsPageContent() {
       {view === 'list' && (
         <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
           {filtered.length === 0 ? (
-            <p style={{ fontSize: '15px', color: muted, textAlign: 'center', padding: '48px 20px', margin: 0 }}>
+            <p style={{ fontSize: '15px', color: muted, textAlign: 'center' as const, padding: '48px 20px', margin: 0 }}>
               No productions match your search
             </p>
           ) : filtered.map(prod => <ProductionRow key={prod.id} prod={prod} />)}

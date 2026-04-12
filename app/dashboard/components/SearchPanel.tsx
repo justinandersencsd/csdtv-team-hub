@@ -104,7 +104,7 @@ export default function SearchPanel({ onClose }: Props) {
         </div>
 
         {results.length > 0 && (
-          <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
+          <div style={{ maxHeight: '360px', overflowY: 'auto' as const }}>
             {results.map(result => (
               <div
                 key={`${result.type}-${result.id}`}
@@ -117,8 +117,8 @@ export default function SearchPanel({ onClose }: Props) {
                   {typeIcon(result.type)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{result.title}</p>
-                  {result.subtitle && <p style={{ fontSize: '13px', color: muted, margin: '1px 0 0', textTransform: 'capitalize' }}>{result.subtitle}</p>}
+                  <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{result.title}</p>
+                  {result.subtitle && <p style={{ fontSize: '13px', color: muted, margin: '1px 0 0', textTransform: 'capitalize' as const }}>{result.subtitle}</p>}
                 </div>
                 <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '6px', background: `${typeColor(result.type)}18`, color: typeColor(result.type), flexShrink: 0 }}>{result.type}</span>
               </div>
@@ -127,7 +127,7 @@ export default function SearchPanel({ onClose }: Props) {
         )}
 
         {query.length >= 2 && results.length === 0 && !loading && (
-          <p style={{ color: muted, fontSize: '15px', textAlign: 'center', padding: '20px' }}>No results for "{query}"</p>
+          <p style={{ color: muted, fontSize: '15px', textAlign: 'center' as const, padding: '20px' }}>No results for "{query}"</p>
         )}
 
         {query.length === 0 && (

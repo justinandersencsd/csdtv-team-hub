@@ -235,13 +235,13 @@ export default function ReportsPage() {
           <p style={{ fontSize: '14px', color: muted, margin: '4px 0 0' }}>Data-driven insights for CSDtv</p>
         </div>
         <select value={yearFilter} onChange={e => setYearFilter(e.target.value)} style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '10px', padding: '10px 14px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}>
-          <option value="">All time</option>
-          {years.map(y => <option key={y} value={y}>{y}</option>)}
+          <option value="">All school years</option>
+          {years.map(y => <option key={y} value={y}>{Number(y) - 1}–{y}</option>)}
         </select>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: `1px solid ${border}`, overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: `1px solid ${border}`, overflowX: 'auto' as const }}>
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{ background: 'none', border: 'none', borderBottom: tab === t.key ? '2px solid #5ba3e0' : '2px solid transparent', padding: '10px 16px', fontSize: '14px', fontWeight: tab === t.key ? 600 : 400, color: tab === t.key ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' as const }}>
             {t.label}

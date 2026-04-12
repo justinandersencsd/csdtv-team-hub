@@ -428,7 +428,7 @@ export default function TasksPage() {
               <button style={filterBtn(groupBy === 'status')} onClick={() => setGroupBy('status')}>Status</button>
             </div>
             {filtered.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
                 <p style={{ color: muted, fontSize: '15px' }}>No tasks match your filters</p>
               </div>
             ) : viewMode === 'kanban' ? (
@@ -490,7 +490,7 @@ export default function TasksPage() {
                           </div>
                         )
                       })}
-                      {col.length === 0 && <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0', opacity: 0.5 }}>Drop tasks here</p>}
+                      {col.length === 0 && <p style={{ fontSize: '12px', color: muted, textAlign: 'center' as const, padding: '20px 0', opacity: 0.5 }}>Drop tasks here</p>}
                     </div>
                   )
                 })}
@@ -554,7 +554,7 @@ export default function TasksPage() {
         {activeTab === 'completed' && (
           <div>
             {completedTasks.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
                 <p style={{ fontSize: '15px', color: muted }}>No completed tasks yet</p>
               </div>
             ) : (
@@ -593,7 +593,7 @@ export default function TasksPage() {
 
       {/* Detail panel */}
       {selectedTask && (
-        <div style={{ width: '380px', flexShrink: 0, position: 'sticky', top: '80px', background: panelBg, border: `0.5px solid ${border}`, borderRadius: '14px', maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}>
+        <div style={{ width: '380px', flexShrink: 0, position: 'sticky', top: '80px', background: panelBg, border: `0.5px solid ${border}`, borderRadius: '14px', maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' as const }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: `0.5px solid ${border}` }}>
             <span style={{ fontSize: '13px', fontWeight: 500, color: muted, textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>Task detail</span>
             <button onClick={closePanel} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
@@ -706,7 +706,7 @@ export default function TasksPage() {
             {/* SUBTASKS TAB */}
             {detailTab === 'subtasks' && (
               <div>
-                {subtasks.length === 0 && <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '16px 0' }}>No subtasks yet</p>}
+                {subtasks.length === 0 && <p style={{ fontSize: '13px', color: muted, textAlign: 'center' as const, padding: '16px 0' }}>No subtasks yet</p>}
                 {subtasks.map(sub => (
                   <div key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: `0.5px solid ${border}` }}>
                     <button onClick={() => toggleSubtask(sub)} style={{ width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0, border: `1.5px solid ${sub.completed ? '#22c55e' : border}`, background: sub.completed ? '#22c55e' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -741,7 +741,7 @@ export default function TasksPage() {
                   <button onClick={addTimeEntry} disabled={!newTimeHours} style={{ padding: '8px 14px', borderRadius: '8px', background: newTimeHours ? '#1e6cb5' : (dark ? '#1a2540' : '#e2e8f0'), color: newTimeHours ? '#fff' : muted, border: 'none', cursor: newTimeHours ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: '13px', fontWeight: 500, minHeight: '38px' }}>Log</button>
                 </div>
                 {timeEntries.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: muted, textAlign: 'center', padding: '16px 0' }}>No time logged yet</p>
+                  <p style={{ fontSize: '13px', color: muted, textAlign: 'center' as const, padding: '16px 0' }}>No time logged yet</p>
                 ) : (
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>

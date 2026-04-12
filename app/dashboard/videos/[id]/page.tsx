@@ -80,7 +80,7 @@ export default function VideoDetailPage() {
   const [newFile, setNewFile] = useState({ file_type: 'other', file_name: '', file_url: '' })
 
   const inputStyle: React.CSSProperties = { width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
-  const labelStyle: React.CSSProperties = { fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }
+  const labelStyle: React.CSSProperties = { fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }
 
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -204,7 +204,7 @@ export default function VideoDetailPage() {
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><Loader /></div>
   if (!video) return (
-    <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+    <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
       <p style={{ color: muted }}>Video not found</p>
       <Link href="/dashboard/videos" style={{ color: '#5ba3e0' }}>Back to library</Link>
     </div>
@@ -374,7 +374,7 @@ export default function VideoDetailPage() {
             )}
           </div>
           {talent.length === 0 ? (
-            <p style={{ color: muted, textAlign: 'center', padding: '40px 0', fontSize: '14px' }}>No people added yet</p>
+            <p style={{ color: muted, textAlign: 'center' as const, padding: '40px 0', fontSize: '14px' }}>No people added yet</p>
           ) : (
             <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', overflow: 'hidden' }}>
               {talent.map((person, i) => {
@@ -421,7 +421,7 @@ export default function VideoDetailPage() {
             </div>
           </div>
           {files.length === 0 ? (
-            <p style={{ color: muted, textAlign: 'center', padding: '40px 0', fontSize: '14px' }}>No files attached yet</p>
+            <p style={{ color: muted, textAlign: 'center' as const, padding: '40px 0', fontSize: '14px' }}>No files attached yet</p>
           ) : (
             <div style={{ background: cardBg, border: `0.5px solid ${border}`, borderRadius: '12px', overflow: 'hidden' }}>
               {files.map((file, i) => (
@@ -450,7 +450,7 @@ export default function VideoDetailPage() {
             </div>
           </div>
           {destinations.length === 0 ? (
-            <p style={{ color: muted, textAlign: 'center', padding: '40px 0', fontSize: '14px' }}>No destinations added yet — add where this video is published</p>
+            <p style={{ color: muted, textAlign: 'center' as const, padding: '40px 0', fontSize: '14px' }}>No destinations added yet — add where this video is published</p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
               {destinations.map(dest => (

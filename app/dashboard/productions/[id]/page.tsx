@@ -357,7 +357,7 @@ export default function ProductionDetailPage() {
   )
 
   if (!production) return (
-    <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+    <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
       <p style={{ color: muted }}>Production not found</p>
       <Link href="/dashboard/productions" style={{ color: '#5ba3e0' }}>Back</Link>
     </div>
@@ -454,7 +454,7 @@ export default function ProductionDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: `0.5px solid ${border}`, marginBottom: '20px', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', borderBottom: `0.5px solid ${border}`, marginBottom: '20px', overflowX: 'auto' as const }}>
         {tabBtn('checklist', 'Checklist', checklist.length > 0 ? completedCount : undefined)}
         {tabBtn('info', 'Production info')}
         {tabBtn('team', 'Team', members.length)}
@@ -513,7 +513,7 @@ export default function ProductionDetailPage() {
           )}
 
           {checklist.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px', background: cardBg, borderRadius: '12px', border: `0.5px solid ${border}` }}>
+            <div style={{ textAlign: 'center' as const, padding: '40px 20px', background: cardBg, borderRadius: '12px', border: `0.5px solid ${border}` }}>
               <p style={{ color: muted, fontSize: '14px', marginBottom: '12px' }}>No checklist yet</p>
               <button
                 onClick={initChecklist}
@@ -844,7 +844,7 @@ export default function ProductionDetailPage() {
       {showEmailModal && production && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
           onClick={e => { if (e.target === e.currentTarget) setShowEmailModal(false) }}>
-          <div style={{ background: dark ? '#0d1525' : '#fff', border: `0.5px solid ${border}`, borderRadius: '16px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '24px' }}>
+          <div style={{ background: dark ? '#0d1525' : '#fff', border: `0.5px solid ${border}`, borderRadius: '16px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' as const, padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '17px', fontWeight: 600, color: text, margin: 0 }}>Email organizer</h2>
               <button onClick={() => setShowEmailModal(false)} style={{ background: 'none', border: 'none', color: muted, cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>

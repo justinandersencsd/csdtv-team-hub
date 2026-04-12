@@ -409,7 +409,7 @@ export default function EquipmentPage() {
               background: 'none', border: 'none', borderBottom: tab === t ? '2px solid #5ba3e0' : '2px solid transparent',
               padding: '10px 18px', fontSize: '14px', fontWeight: tab === t ? 600 : 400,
               color: tab === t ? '#5ba3e0' : muted, cursor: 'pointer', fontFamily: 'inherit',
-              textTransform: 'capitalize',
+              textTransform: 'capitalize' as const,
             }}
           >
             {t === 'items' ? `Items (${equipment.length})` : t === 'kits' ? `Kits (${kits.length})` : `Active Loans (${loans.length})`}
@@ -464,12 +464,12 @@ export default function EquipmentPage() {
 
           {/* Equipment table */}
           <div className="csdtv-equipment-table" style={{ background: cardBg, borderRadius: '14px', border: `1px solid ${border}`, overflow: 'hidden' }}>
-            <div className="csdtv-eq-header" style={{ display: 'grid', gridTemplateColumns: '80px 44px 1fr 140px 160px 110px 90px 60px', padding: '12px 16px', borderBottom: `1px solid ${border}`, fontSize: '12px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            <div className="csdtv-eq-header" style={{ display: 'grid', gridTemplateColumns: '80px 44px 1fr 140px 160px 110px 90px 60px', padding: '12px 16px', borderBottom: `1px solid ${border}`, fontSize: '12px', fontWeight: 600, color: muted, textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>
               <span>Tag</span><span></span><span>Name</span><span>Brand</span><span>Category</span><span>Status</span><span>Site</span><span></span>
             </div>
 
             {filtered.length === 0 && (
-              <div style={{ padding: '40px', textAlign: 'center', color: muted, fontSize: '14px' }}>No equipment found</div>
+              <div style={{ padding: '40px', textAlign: 'center' as const, color: muted, fontSize: '14px' }}>No equipment found</div>
             )}
 
             {filtered.map((e, i) => {
@@ -521,7 +521,7 @@ export default function EquipmentPage() {
           )}
 
           {kits.length === 0 && (
-            <div style={{ background: cardBg, borderRadius: '14px', padding: '40px', textAlign: 'center', color: muted, border: `1px solid ${border}` }}>No kits created yet. Kits let you group items and check them out together.</div>
+            <div style={{ background: cardBg, borderRadius: '14px', padding: '40px', textAlign: 'center' as const, color: muted, border: `1px solid ${border}` }}>No kits created yet. Kits let you group items and check them out together.</div>
           )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' }}>
@@ -556,7 +556,7 @@ export default function EquipmentPage() {
       {tab === 'loans' && (
         <div>
           {loans.length === 0 && (
-            <div style={{ background: cardBg, borderRadius: '14px', padding: '40px', textAlign: 'center', color: muted, border: `1px solid ${border}` }}>No items currently checked out.</div>
+            <div style={{ background: cardBg, borderRadius: '14px', padding: '40px', textAlign: 'center' as const, color: muted, border: `1px solid ${border}` }}>No items currently checked out.</div>
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -568,7 +568,7 @@ export default function EquipmentPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                       {loan.equipment && <span style={{ fontFamily: 'monospace', fontSize: '13px', color: '#5ba3e0', fontWeight: 600 }}>{loan.equipment.asset_tag}</span>}
                       <span style={{ fontSize: '15px', fontWeight: 500, color: text }}>{loan.equipment?.name || loan.kit?.name || 'Unknown'}</span>
-                      {isOverdue && <span style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, background: dark ? '#3b1515' : '#fee2e2', color: '#ef4444', textTransform: 'uppercase' }}>Overdue</span>}
+                      {isOverdue && <span style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, background: dark ? '#3b1515' : '#fee2e2', color: '#ef4444', textTransform: 'uppercase' as const }}>Overdue</span>}
                     </div>
                     <div style={{ fontSize: '13px', color: muted }}>
                       Loaned to <strong style={{ color: text }}>{loan.borrower_name}</strong>
@@ -589,7 +589,7 @@ export default function EquipmentPage() {
                       }
                       loadData()
                     }}
-                    style={{ background: '#22c55e', border: 'none', borderRadius: '10px', color: '#fff', padding: '8px 18px', fontSize: '13px', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', minHeight: '40px', whiteSpace: 'nowrap' }}
+                    style={{ background: '#22c55e', border: 'none', borderRadius: '10px', color: '#fff', padding: '8px 18px', fontSize: '13px', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', minHeight: '40px', whiteSpace: 'nowrap' as const }}
                   >Check In</button>
                 </div>
               )

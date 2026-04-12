@@ -118,7 +118,7 @@ export default function SignagePage() {
   if (loading) return <div style={{ background: bg, height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' as const }}><p style={{ color: muted, fontSize: '22px', fontFamily: 'system-ui' }}>Loading...</p></div>
 
   return (
-    <div style={{ background: bg, height: '100vh', padding: '12px 16px', fontFamily: 'system-ui, -apple-system, sans-serif', color: text, display: 'flex', flexDirection: 'column' as const, boxSizing: 'border-box' as const, overflow: 'hidden' as const }}>
+    <div style={{ background: bg, height: '100vh', padding: '12px 16px', fontFamily: 'system-ui, -apple-system, sans-serif', color: text, display: 'flex', flexDirection: 'column' as const, boxSizing: 'border-box' as const, overflow: 'auto' as const }}>
 
       {/* Row 1: Title + Clock */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0 }}>
@@ -147,7 +147,7 @@ export default function SignagePage() {
       <div style={{
         flex: 1, display: 'grid',
         gridTemplateColumns: '64px 0.5fr repeat(5, 1fr) 0.5fr',
-        gridTemplateRows: 'auto repeat(5, 1fr)',
+        gridTemplateRows: 'auto repeat(5, minmax(80px, auto))',
         border: `1px solid ${gridBorder}`, borderRadius: '8px', overflow: 'hidden' as const, minHeight: 0,
       }}>
         {/* Header row: 8 cells */}
@@ -195,7 +195,7 @@ export default function SignagePage() {
                   borderBottom: wi < 4 ? `1px solid ${gridBorder}` : 'none',
                   borderRight: di < 6 ? `1px solid ${gridBorder}` : 'none',
                   borderLeft: todayCell ? '3px solid #60b8f0' : 'none',
-                  padding: '2px 3px', opacity, overflow: 'hidden' as const,
+                  padding: '2px 3px', opacity,
                 }}>
                   <div style={{ fontSize: '11px', color: todayCell ? '#60b8f0' : '#99aabb', fontWeight: todayCell ? 800 : 500, textAlign: 'right' as const, marginBottom: '1px' }}>{date.getDate()}</div>
                   {dayProds.map(p => {

@@ -5,12 +5,13 @@ import { useTheme } from '@/lib/theme'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import Loader from '../components/Loader'
+import { getSchoolName } from '@/lib/schools'
 
 interface Production {
   id: string; production_number: number; title: string
   request_type_label: string | null; status: string | null
   start_datetime: string | null; end_datetime: string | null
-  organizer_name: string | null; filming_location: string | null
+  organizer_name: string | null; filming_location: string | null; school_department: string | null
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -36,7 +37,7 @@ export default function CalendarPage() {
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-    const { data } = await supabase.from('productions').select('id, production_number, title, request_type_label, status, start_datetime, end_datetime, organizer_name, filming_location').not('start_datetime', 'is', null).order('start_datetime')
+    const { data } = await supabase.from('productions').select('id, production_number, title, request_type_label, status, start_datetime, end_datetime, organizer_name, filming_location, school_department').not('start_datetime', 'is', null).order('start_datetime')
     setProductions(data || [])
     setLoading(false)
   }, [supabase])

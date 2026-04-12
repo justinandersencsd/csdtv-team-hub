@@ -280,7 +280,7 @@ export default function OnboardingPage() {
           </div>
         </div>
         {myTasks.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px' }}>
+          <div style={{ textAlign: 'center' as const, padding: '60px 20px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px' }}>
             <p style={{ fontSize: '15px', color: muted, margin: 0 }}>Your onboarding tasks haven't been set up yet.</p>
             <p style={{ fontSize: '14px', color: muted, margin: '6px 0 0' }}>Check back soon or ask your manager.</p>
           </div>
@@ -356,7 +356,7 @@ export default function OnboardingPage() {
       </div>
 
       {totalInterns === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px' }}>
+        <div style={{ textAlign: 'center' as const, padding: '60px 20px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px' }}>
           <p style={{ fontSize: '15px', color: muted, margin: 0 }}>No interns on the team yet.</p>
           <p style={{ fontSize: '14px', color: muted, margin: '6px 0 0' }}>Add interns in Settings and their onboarding will appear here.</p>
         </div>

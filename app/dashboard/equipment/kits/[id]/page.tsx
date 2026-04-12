@@ -212,7 +212,7 @@ export default function KitDetailPage() {
       {/* Kit items */}
       <div style={{ background: cardBg, borderRadius: '14px', border: `1px solid ${border}`, overflow: 'hidden' }}>
         {items.length === 0 && (
-          <div style={{ padding: '40px', textAlign: 'center', color: muted, fontSize: '14px' }}>
+          <div style={{ padding: '40px', textAlign: 'center' as const, color: muted, fontSize: '14px' }}>
             No items in this kit yet. {isManager ? 'Click "+ Add Items" to get started.' : ''}
           </div>
         )}

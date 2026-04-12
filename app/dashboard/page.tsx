@@ -288,7 +288,7 @@ export default function DashboardPage() {
               </div>
               <div style={{ flex: 1 }}>
                 {myTasks.length === 0 ? (
-                  <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                  <div style={{ padding: '40px 20px', textAlign: 'center' as const }}>
                     <p style={{ fontSize: '15px', color: muted, margin: '0 0 10px' }}>No open tasks</p>
                     <Link href="/dashboard/tasks" style={{ fontSize: '14px', color: '#3b82f6', textDecoration: 'none' }}>Create a task →</Link>
                   </div>
@@ -326,7 +326,7 @@ export default function DashboardPage() {
               </div>
               <div style={{ flex: 1 }}>
                 {myProductions.length === 0 ? (
-                  <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                  <div style={{ padding: '40px 20px', textAlign: 'center' as const }}>
                     <p style={{ fontSize: '15px', color: muted, margin: '0 0 10px' }}>No active productions</p>
                     <Link href="/dashboard/productions" style={{ fontSize: '14px', color: '#3b82f6', textDecoration: 'none' }}>Browse productions →</Link>
                   </div>

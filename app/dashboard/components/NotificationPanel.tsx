@@ -94,11 +94,11 @@ export default function NotificationPanel({ onClose, onUnreadChange, userId }: P
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto' as const }}>
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}><Loader size={32} /></div>
         ) : notifications.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{ textAlign: 'center' as const, padding: '40px 20px' }}>
             <p style={{ fontSize: '15px', color: muted, margin: 0 }}>No notifications yet</p>
           </div>
         ) : notifications.map(n => (
@@ -109,7 +109,7 @@ export default function NotificationPanel({ onClose, onUnreadChange, userId }: P
           >
             <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '1px' }}>{typeIcon(n.type)}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '15px', fontWeight: n.read ? 400 : 500, color: text, margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</p>
+              <p style={{ fontSize: '15px', fontWeight: n.read ? 400 : 500, color: text, margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{n.title}</p>
               {n.body && <p style={{ fontSize: '13px', color: muted, margin: '0 0 3px', lineHeight: 1.4 }}>{n.body}</p>}
               <p style={{ fontSize: '10px', color: muted, margin: 0 }}>{formatTime(n.created_at)}</p>
             </div>

@@ -70,10 +70,10 @@ export default function LoginPage() {
           />
         </div>
 
-        <div style={{ textAlign: 'center', fontSize: '18px', fontWeight: 500, color: '#f0f4ff', marginBottom: '4px' }}>
+        <div style={{ textAlign: 'center' as const, fontSize: '18px', fontWeight: 500, color: '#f0f4ff', marginBottom: '4px' }}>
           Team Hub
         </div>
-        <div style={{ textAlign: 'center', fontSize: '14px', color: '#8899bb', marginBottom: '1.5rem' }}>
+        <div style={{ textAlign: 'center' as const, fontSize: '14px', color: '#8899bb', marginBottom: '1.5rem' }}>
           Internal staff portal
         </div>
 
@@ -101,7 +101,7 @@ export default function LoginPage() {
         {mode === 'password' ? (
           <>
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8899bb', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8899bb', letterSpacing: '1px', textTransform: 'uppercase' as const, marginBottom: '6px' }}>
                 Email address
               </label>
               <input
@@ -113,7 +113,7 @@ export default function LoginPage() {
               />
             </div>
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8899bb', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8899bb', letterSpacing: '1px', textTransform: 'uppercase' as const, marginBottom: '6px' }}>
                 Password
               </label>
               <input
@@ -148,7 +148,7 @@ export default function LoginPage() {
         ) : (
           <>
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8899bb', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#8899bb', letterSpacing: '1px', textTransform: 'uppercase' as const, marginBottom: '6px' }}>
                 Email address
               </label>
               <input
@@ -178,7 +178,7 @@ export default function LoginPage() {
           </>
         )}
 
-        <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '13px', color: '#4a5a7a' }}>
+        <div style={{ textAlign: 'center' as const, marginTop: '1.5rem', fontSize: '13px', color: '#4a5a7a' }}>
           Having trouble? Contact your administrator.
         </div>
       </div>

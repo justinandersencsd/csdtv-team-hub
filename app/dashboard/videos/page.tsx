@@ -113,7 +113,7 @@ export default function VideosPage() {
   })
 
   const inputStyle: React.CSSProperties = { width: '100%', background: inputBg, border: `0.5px solid ${border}`, borderRadius: '8px', padding: '10px 12px', fontSize: '14px', color: text, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
-  const labelStyle: React.CSSProperties = { fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }
+  const labelStyle: React.CSSProperties = { fontSize: '12px', fontWeight: 500, color: muted, display: 'block', marginBottom: '4px', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }
 
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><Loader /></div>
 
@@ -219,7 +219,7 @@ export default function VideosPage() {
 
       {/* Video grid */}
       {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+        <div style={{ textAlign: 'center' as const, padding: '60px 20px' }}>
           <p style={{ fontSize: '40px', margin: '0 0 12px' }}>🎬</p>
           <p style={{ fontSize: '16px', color: text, fontWeight: 500, margin: '0 0 6px' }}>No videos yet</p>
           <p style={{ fontSize: '14px', color: muted, margin: '0 0 16px' }}>Start building your video library by adding your first video.</p>

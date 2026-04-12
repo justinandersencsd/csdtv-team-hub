@@ -188,7 +188,7 @@ export default function KnowledgePage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: (editing || showNew) ? '0' : '20px' }}>
+      <div style={{ flex: 1, overflowY: 'auto' as const, padding: (editing || showNew) ? '0' : '20px' }}>
         {(editing || showNew) ? (
           <div>
             <div style={{ padding: '16px 20px 0' }}>
@@ -271,7 +271,7 @@ export default function KnowledgePage() {
           </div>
 
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px' }}>
+            <div style={{ textAlign: 'center' as const, padding: '40px 20px', background: cardBg, border: `0.5px solid ${border}`, borderRadius: '14px' }}>
               {articles.length === 0 ? (
                 <div>
                   <p style={{ fontSize: '15px', fontWeight: 500, color: text, margin: '0 0 6px' }}>No articles yet</p>
